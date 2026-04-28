@@ -741,27 +741,149 @@ export function CoffeeDetail() {
 
 // ── Coffee List ───────────────────────────────────────────────────────────────
 
-type TabFilter = 'active' | 'resting' | 'finished' | 'favorites' | 'all';
+function CoffeeListCard({
+  c,
+  allBrews,
+  onNavigate,
+  onToggleFavorite,
+}: {
+  c: CoffeeType;
+  allBrews: any[];
+  onNavigate: () => void;
+  onToggleFavorite: (e: React.MouseEvent) => void;
+}) {
+  const brews = allBrews.filter((b) => b.coffeeId === c.id);
+  const scores = brews.map((b) => calcBrewScore(b.flavorProfile));
+  const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+  const status = getStatus(c);
+  const daysOff = c.roastDate && status !== 'finished'
+    ? daysOffRoast(c.roastDate, new Date().toISOString())
+    : null;
 
-const STATUS_PILL: Record<BrewingStatus, { label: string; className: string }> = {
-  brewing: { label: 'Active', className: 'bg-green-100 text-green-700' },
-  resting: { label: 'Resting', className: 'bg-amber-100 text-amber-700' },
-  finished: { label: 'Finished', className: 'bg-brew-surface text-brew-muted border border-brew-border' },
-};
+  return (
+    <div
+      className="bg-brew-card border border-brew-border rounded-xl overflow-hidden cursor-pointer hover:border-brew-primary/40 transition-colors"
+      onClick={onNavigate}
+    >
+      <div className="p-4 pb-3">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-brew-muted leading-relaxed">{c.roaster}</p>
+          {c.isFavorite && (
+            <Star size={13} className="fill-amber-400 text-amber-400 flex-shrink-0 mt-0.5" />
+          )}
+        </div>
+        <h2 className="font-display italic text-brew-text text-2xl leading-tight">
+          {c.coffeeName || c.countryOrigin}
+        </h2>
+        <div className="flex items-center gap-4 mt-2 text-brew-muted text-sm flex-wrap">
+          {(c.countryOrigin || c.region) && (
+            <span className="flex items-center gap-1">
+              <MapPin size={12} className="text-brew-faint" />
+              {c.countryOrigin}{c.region ? `, ${c.region}` : ''}
+            </span>
+          )}
+          {c.roastDate && (
+            <span className="flex items-center gap-1">
+              <Calendar size={12} className="text-brew-faint" />
+              {formatDate(c.roastDate)}
+            </span>
+          )}
+        </div>
+
+        {/* Resting progress bar */}
+        {status === 'resting' && daysOff !== null && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className="flex-1 h-1 rounded-full bg-brew-border overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  daysOff < 14 ? 'bg-amber-400' : daysOff <= 28 ? 'bg-green-500' : 'bg-brew-muted'
+                }`}
+                style={{ width: `${Math.min(100, (daysOff / 28) * 100)}%` }}
+              />
+            </div>
+            <span className={`text-xs font-semibold flex-shrink-0 ${
+              daysOff < 14 ? 'text-amber-500' : daysOff <= 28 ? 'text-green-600' : 'text-brew-muted'
+            }`}>
+              {daysOff}d off roast
+            </span>
+          </div>
+        )}
+
+        {/* Active: subtle days count if roast date exists */}
+        {status === 'brewing' && daysOff !== null && (
+          <p className="text-xs text-brew-faint mt-2">{daysOff}d off roast</p>
+        )}
+      </div>
+
+      <div className="border-t border-brew-border px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Star size={13} className="text-brew-faint" />
+          {avg !== null ? (
+            <><span className="text-sm font-semibold text-brew-text">{avg.toFixed(1)}</span>
+            <span className="text-xs text-brew-faint">avg</span></>
+          ) : (
+            <span className="text-sm text-brew-faint">no score</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            className="p-1 -m-1 rounded transition-colors hover:bg-brew-border/50"
+            onClick={onToggleFavorite}
+          >
+            <Star size={14} className={c.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-brew-faint'} />
+          </button>
+          <span className="text-xs font-semibold uppercase tracking-widest text-brew-muted">
+            {brews.length} {brews.length === 1 ? 'brew' : 'brews'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RosterSection({
+  label,
+  dot,
+  coffees,
+  allBrews,
+  navigate,
+  updateCoffee,
+}: {
+  label: string;
+  dot: string;
+  coffees: CoffeeType[];
+  allBrews: any[];
+  navigate: (p: string) => void;
+  updateCoffee: (id: string, c: Partial<CoffeeType>) => void;
+}) {
+  if (coffees.length === 0) return null;
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+        <span className="text-xs font-semibold uppercase tracking-widest text-brew-muted">{label}</span>
+        <span className="text-xs text-brew-faint">({coffees.length})</span>
+        <div className="flex-1 h-px bg-brew-border ml-1" />
+      </div>
+      <div className="flex flex-col gap-3">
+        {coffees.map((c) => (
+          <CoffeeListCard
+            key={c.id}
+            c={c}
+            allBrews={allBrews}
+            onNavigate={() => navigate(`/coffees/${c.id}`)}
+            onToggleFavorite={(e) => { e.stopPropagation(); updateCoffee(c.id, { isFavorite: !c.isFavorite }); }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Coffees() {
   const navigate = useNavigate();
   const { data, updateCoffee } = useApp();
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<TabFilter>('active');
-
-  const tabs: { id: TabFilter; label: string }[] = [
-    { id: 'active', label: 'Active' },
-    { id: 'resting', label: 'Resting' },
-    { id: 'finished', label: 'Finished' },
-    { id: 'favorites', label: 'Favorites' },
-    { id: 'all', label: 'All' },
-  ];
 
   const searched = data.coffees.filter((c) => {
     if (!search) return true;
@@ -774,14 +896,10 @@ export default function Coffees() {
     );
   });
 
-  const filtered = searched.filter((c) => {
-    const s = getStatus(c);
-    if (tab === 'active') return s === 'brewing';
-    if (tab === 'resting') return s === 'resting';
-    if (tab === 'finished') return s === 'finished';
-    if (tab === 'favorites') return !!c.isFavorite;
-    return true;
-  });
+  const brewing = searched.filter((c) => getStatus(c) === 'brewing');
+  const resting = searched.filter((c) => getStatus(c) === 'resting');
+  const finished = searched.filter((c) => getStatus(c) === 'finished');
+  const hasResults = brewing.length + resting.length + finished.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -800,51 +918,21 @@ export default function Coffees() {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-brew-faint" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search roaster, name, origin..."
-          className="w-full bg-brew-card border border-brew-border rounded-xl pl-9 pr-4 py-3 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors"
-        />
-      </div>
+      {data.coffees.length > 0 && (
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-brew-faint" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search roaster, name, origin..."
+            className="w-full bg-brew-card border border-brew-border rounded-xl pl-9 pr-4 py-3 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors"
+          />
+        </div>
+      )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-brew-card border border-brew-border rounded-xl p-1">
-        {tabs.map((t) => {
-          const count = searched.filter((c) => {
-            const s = getStatus(c);
-            if (t.id === 'active') return s === 'brewing';
-            if (t.id === 'resting') return s === 'resting';
-            if (t.id === 'finished') return s === 'finished';
-            if (t.id === 'favorites') return !!c.isFavorite;
-            return true;
-          }).length;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-1 py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-                tab === t.id
-                  ? 'bg-brew-primary text-brew-bg shadow-sm'
-                  : 'text-brew-muted hover:text-brew-text'
-              }`}
-            >
-              {t.label}
-              {count > 0 && (
-                <span className={`ml-1 text-xs ${tab === t.id ? 'opacity-70' : 'text-brew-faint'}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* List */}
+      {/* Roster */}
       {data.coffees.length === 0 ? (
         <EmptyState
           icon={<Coffee size={40} />}
@@ -852,101 +940,34 @@ export default function Coffees() {
           description="Add the coffee you're currently brewing to get started."
           action={<Button onClick={() => navigate('/coffees/new')}><Plus size={14} /> Add Coffee</Button>}
         />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={<Coffee size={32} />} title={search ? 'No coffees match your search' : `No ${tab === 'all' ? '' : tab + ' '}coffees`} />
+      ) : !hasResults ? (
+        <EmptyState icon={<Coffee size={32} />} title="No coffees match your search" />
       ) : (
-        <div className="flex flex-col gap-3">
-          {filtered.map((c) => {
-            const brews = data.brews.filter((b) => b.coffeeId === c.id);
-            const scores = brews.map((b) => calcBrewScore(b.flavorProfile));
-            const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
-            const status = getStatus(c);
-            const pill = STATUS_PILL[status];
-            const daysOff = c.roastDate && status !== 'finished'
-              ? daysOffRoast(c.roastDate, new Date().toISOString())
-              : null;
-
-            return (
-              <div
-                key={c.id}
-                className="bg-brew-card border border-brew-border rounded-xl overflow-hidden cursor-pointer hover:border-brew-primary/40 transition-colors"
-                onClick={() => navigate(`/coffees/${c.id}`)}
-              >
-                <div className="p-4 pb-3">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-brew-muted">{c.roaster}</p>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {c.isFavorite && (
-                        <Star size={13} className="fill-amber-400 text-amber-400" />
-                      )}
-                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${pill.className}`}>
-                        {pill.label}
-                      </span>
-                    </div>
-                  </div>
-                  <h2 className="font-display italic text-brew-text text-2xl leading-tight">
-                    {c.coffeeName || c.countryOrigin}
-                  </h2>
-                  <div className="flex items-center gap-4 mt-2 text-brew-muted text-sm flex-wrap">
-                    {(c.countryOrigin || c.region) && (
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} className="text-brew-faint" />
-                        {c.countryOrigin}{c.region ? `, ${c.region}` : ''}
-                      </span>
-                    )}
-                    {c.roastDate && (
-                      <span className="flex items-center gap-1">
-                        <Calendar size={12} className="text-brew-faint" />
-                        {formatDate(c.roastDate)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Resting progress */}
-                  {status === 'resting' && daysOff !== null && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-brew-border overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            daysOff < 14 ? 'bg-amber-400' : daysOff <= 28 ? 'bg-green-500' : 'bg-brew-muted'
-                          }`}
-                          style={{ width: `${Math.min(100, (daysOff / 28) * 100)}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs font-medium flex-shrink-0 ${
-                        daysOff < 14 ? 'text-amber-500' : daysOff <= 28 ? 'text-green-600' : 'text-brew-muted'
-                      }`}>
-                        {daysOff}d off roast
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t border-brew-border px-4 py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-brew-muted">
-                    <Star size={13} className={avg !== null ? 'text-brew-faint' : 'text-brew-faint'} />
-                    {avg !== null ? (
-                      <span className="text-sm font-semibold text-brew-text">{avg.toFixed(1)}</span>
-                    ) : (
-                      <span className="text-sm text-brew-faint">—</span>
-                    )}
-                    <span className="text-xs text-brew-faint ml-0.5">AVG</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      className="p-1 -m-1 rounded transition-colors hover:bg-brew-border/50"
-                      onClick={(e) => { e.stopPropagation(); updateCoffee(c.id, { isFavorite: !c.isFavorite }); }}
-                    >
-                      <Star size={14} className={c.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-brew-faint'} />
-                    </button>
-                    <span className="text-xs font-semibold uppercase tracking-widest text-brew-muted">
-                      {brews.length} {brews.length === 1 ? 'brew' : 'brews'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex flex-col gap-8">
+          <RosterSection
+            label="Brewing Now"
+            dot="bg-green-500"
+            coffees={brewing}
+            allBrews={data.brews}
+            navigate={navigate}
+            updateCoffee={updateCoffee}
+          />
+          <RosterSection
+            label="Resting"
+            dot="bg-amber-400"
+            coffees={resting}
+            allBrews={data.brews}
+            navigate={navigate}
+            updateCoffee={updateCoffee}
+          />
+          <RosterSection
+            label="Finished"
+            dot="bg-brew-border"
+            coffees={finished}
+            allBrews={data.brews}
+            navigate={navigate}
+            updateCoffee={updateCoffee}
+          />
         </div>
       )}
     </div>
