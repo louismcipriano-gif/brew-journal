@@ -1,0 +1,178 @@
+export type ProcessingMethod =
+  | 'Washed'
+  | 'Natural'
+  | 'Honey'
+  | 'Anaerobic'
+  | 'Thermal Shock'
+  | 'Wet-Hulled'
+  | 'Other';
+
+export type RoastLevel =
+  | 'Light'
+  | 'Light-Medium'
+  | 'Medium'
+  | 'Medium-Dark'
+  | 'Dark';
+
+export type BrewMethod =
+  | 'Pour Over'
+  | 'Espresso'
+  | 'Immersion'
+  | 'AeroPress'
+  | 'Zuppa Longa';
+
+export type PourHeightSpeed = 'Low' | 'Medium' | 'High';
+
+export type PerceivedExtraction = 'Under' | 'Balanced' | 'Over';
+
+export interface Coffee {
+  id: string;
+  roaster: string;
+  coffeeName?: string;
+  producer?: string;
+  countryOrigin: string;
+  region: string;
+  roastLevel: RoastLevel;
+  processingMethod: string;
+  roastDate: string;
+  elevation: string;
+  varietal: string;
+  tastingNotes: string;
+  price: number;
+  gramsPerBag: number;
+  score: number | null;
+  createdAt: string;
+}
+
+export interface PourOverDetails {
+  totalPours: number;
+  bloomAmount: number;
+  doubleBloom: boolean;
+  melodrip: boolean;
+  pourHeight: PourHeightSpeed;
+  pourSpeed: PourHeightSpeed;
+  agitation: PourHeightSpeed;
+  bloomTime: number;
+  totalBrewTime: number;
+}
+
+export interface EspressoDetails {
+  totalYield: number;
+  brewTime: number;
+  maxPressure: number;
+}
+
+export interface FlavorProfile {
+  acidity: number;
+  sweetness: number;
+  body: number;
+  florality: number;
+  clarity: number;
+  juiciness: number;
+  finish: number;
+  astringency: number;
+  sourness: number;
+  flavorNotes: string;
+  perceivedExtraction: PerceivedExtraction;
+  moreAcidity: boolean;
+  moreSweetness: boolean;
+  moreClarity: boolean;
+  moreFlorality: boolean;
+  moreBody: boolean;
+  lessBitterness: boolean;
+  lessAstringency: boolean;
+  lessSourness: boolean;
+  suggestedChange: string;
+}
+
+export interface ApaxDrops {
+  tonik?: number;
+  jamm?: number;
+  lylac?: number;
+  april?: number;
+  konflux?: number;
+}
+
+export interface Brew {
+  id: string;
+  coffeeId: string;
+  brewDate: string;
+  brewMethod: BrewMethod;
+  grinder: string;
+  grindSetting: string;
+  grindSize?: string;
+  brewingDevice: string;
+  coffeeDose: number;
+  waterAmount: number;
+  waterTempF: number;
+  waterPPM: number;
+  waterRecipe: string;
+  quickScore?: number;
+  isQuickLog?: boolean;
+  apaxDropsUsed?: boolean;
+  apaxDrops?: ApaxDrops;
+  brewRecipeName: string;
+  brewRecipeDetails: string;
+  pourOverDetails?: PourOverDetails;
+  espressoDetails?: EspressoDetails;
+  finalBrewWeight?: number;
+  tds?: number;
+  extractionYield?: number;
+  flavorProfile: FlavorProfile;
+  isGoToRecipe: boolean;
+  createdAt: string;
+}
+
+export type RecipeAccentuates = 'Sweetness' | 'Acidity' | 'Clarity' | 'Juiciness' | 'Texture' | 'Body' | 'Balance';
+
+export interface GrinderEntry {
+  grinder: string;
+  settingRange: string;
+}
+
+export interface SavedRecipe {
+  id: string;
+  name: string;
+  source: string;
+  brewMethod: BrewMethod;
+  brewingDevice: string;
+  coffeeDose: number;
+  waterAmount: number;
+  waterTempF: number;
+  waterPPM: number;
+  waterRecipe: string;
+  recipeDetails: string;
+  accentuates?: RecipeAccentuates[];
+  grindSize?: string;
+  grinderEntries?: GrinderEntry[];
+  pourOverDetails?: PourOverDetails;
+  espressoDetails?: EspressoDetails;
+  createdAt: string;
+}
+
+export type WaterProduct = 'Apax Labs' | 'Lotus Drops' | 'Third Wave Water';
+
+export interface WaterRecipe {
+  id: string;
+  name: string;
+  ppm?: number;
+  gh?: number;
+  kh?: number;
+  ca?: number;
+  mg?: number;
+  na?: number;
+  k?: number;
+  apaxTonik?: number;
+  apaxJamm?: number;
+  apaxLylac?: number;
+  productsUsed: WaterProduct[];
+  notes: string;
+  createdAt: string;
+}
+
+export interface AppData {
+  coffees: Coffee[];
+  brews: Brew[];
+  recipes: SavedRecipe[];
+  waterRecipes: WaterRecipe[];
+}

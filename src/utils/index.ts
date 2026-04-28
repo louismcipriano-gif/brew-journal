@@ -1,0 +1,92 @@
+import type { FlavorProfile } from '../types';
+
+export function calcBrewScore(fp: FlavorProfile): number {
+  const positiveAvg =
+    (fp.acidity + fp.sweetness + fp.body + fp.florality + fp.clarity + fp.juiciness + fp.finish) /
+    7;
+  const negativeAvg = (fp.astringency + fp.sourness) / 2;
+  const score = positiveAvg - negativeAvg * 0.5;
+  return Math.round(Math.max(0, Math.min(10, score)) * 10) / 10;
+}
+
+export function scoreColor(score: number): string {
+  if (score >= 8.5) return '#b8920a';
+  if (score >= 7) return '#2d6e4e';
+  if (score >= 5) return '#b87d28';
+  return '#9b3328';
+}
+
+export function scoreLabel(score: number): string {
+  if (score >= 9) return 'Exceptional';
+  if (score >= 8) return 'Excellent';
+  if (score >= 7) return 'Very Good';
+  if (score >= 6) return 'Good';
+  if (score >= 5) return 'Average';
+  if (score >= 4) return 'Below Average';
+  return 'Poor';
+}
+
+export function fToC(f: number): number {
+  return Math.round(((f - 32) * 5) / 9 * 10) / 10;
+}
+
+export function daysOffRoast(roastDate: string, brewDate: string): number {
+  const roast = new Date(roastDate).getTime();
+  const brew = new Date(brewDate).getTime();
+  return Math.floor((brew - roast) / (1000 * 60 * 60 * 24));
+}
+
+export function brewRatio(water: number, dose: number): string {
+  if (!dose) return '—';
+  return `1:${(water / dose).toFixed(1)}`;
+}
+
+export function bloomRatio(bloom: number, dose: number): string {
+  if (!dose) return '—';
+  return (bloom / dose).toFixed(1) + 'x';
+}
+
+export function espressoRatio(yield_: number, dose: number): string {
+  if (!dose) return '—';
+  return `1:${(yield_ / dose).toFixed(1)}`;
+}
+
+export function pricePerGram(price: number, grams: number): string {
+  if (!grams) return '—';
+  return '$' + (price / grams).toFixed(3);
+}
+
+export function formatDate(iso: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+export function calcEY(tds: number, finalBrewWeight: number, coffeeDose: number): number | null {
+  if (!tds || !finalBrewWeight || !coffeeDose) return null;
+  return Math.round(((tds * finalBrewWeight) / coffeeDose) * 100) / 100;
+}
+
+export function uid(): string {
+  return crypto.randomUUID();
+}
+
+export function avg(nums: number[]): number {
+  if (!nums.length) return 0;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+export function groupBy<T>(items: T[], key: (item: T) => string): Record<string, T[]> {
+  return items.reduce(
+    (acc, item) => {
+      const k = key(item);
+      if (!acc[k]) acc[k] = [];
+      acc[k].push(item);
+      return acc;
+    },
+    {} as Record<string, T[]>,
+  );
+}
