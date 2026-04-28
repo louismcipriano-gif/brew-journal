@@ -865,16 +865,20 @@ function RosterSection({
         <span className="text-xs text-brew-faint">({coffees.length})</span>
         <div className="flex-1 h-px bg-brew-border ml-1" />
       </div>
-      <div className="flex flex-col gap-3">
+      {/* Horizontal scroll track — negative margin pulls cards to screen edge */}
+      <div className="-mx-4 px-4 overflow-x-auto flex gap-3 pb-2 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {coffees.map((c) => (
-          <CoffeeListCard
-            key={c.id}
-            c={c}
-            allBrews={allBrews}
-            onNavigate={() => navigate(`/coffees/${c.id}`)}
-            onToggleFavorite={(e) => { e.stopPropagation(); updateCoffee(c.id, { isFavorite: !c.isFavorite }); }}
-          />
+          <div key={c.id} className="snap-start flex-shrink-0 w-72">
+            <CoffeeListCard
+              c={c}
+              allBrews={allBrews}
+              onNavigate={() => navigate(`/coffees/${c.id}`)}
+              onToggleFavorite={(e) => { e.stopPropagation(); updateCoffee(c.id, { isFavorite: !c.isFavorite }); }}
+            />
+          </div>
         ))}
+        {/* Spacer so last card doesn't sit flush against edge */}
+        <div className="flex-shrink-0 w-4" />
       </div>
     </div>
   );
