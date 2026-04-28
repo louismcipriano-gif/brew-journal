@@ -41,6 +41,9 @@ export interface Coffee {
   price: number;
   gramsPerBag: number;
   score: number | null;
+  isResting?: boolean;
+  isFinished?: boolean;
+  isFavorite?: boolean;
   createdAt: string;
 }
 
