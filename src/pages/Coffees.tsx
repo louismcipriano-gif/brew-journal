@@ -10,7 +10,7 @@ import {
 } from '../utils';
 import { scanCoffeeBag } from '../utils/scanBag';
 import { fetchCoffeeFromUrl } from '../utils/fetchCoffeeUrl';
-import { getApiKey } from './Settings';
+import { getApiKey, getScreenshotKey } from './Settings';
 import type { Coffee as CoffeeType, ProcessingMethod, RoastLevel, CoffeeStyle } from '../types';
 
 const PROCESSING: ProcessingMethod[] = [
@@ -162,7 +162,8 @@ export function CoffeeForm() {
     setFetchingUrl(true);
     try {
       const apiKey = getApiKey() || undefined;
-      const result = await fetchCoffeeFromUrl(urlInput.trim(), apiKey);
+      const screenshotKey = getScreenshotKey() || undefined;
+      const result = await fetchCoffeeFromUrl(urlInput.trim(), apiKey, screenshotKey);
       const validRoasts: RoastLevel[] = ['Ultra Light', 'Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
       const parsedPrice = parseFloat(result.price);
       const parsedGrams = parseInt(result.gramsPerBag);
