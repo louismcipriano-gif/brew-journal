@@ -238,6 +238,28 @@ export default function BrewForm() {
     setForm((f) => ({ ...f, ...recipeToFormFields(recipe) }));
   }
 
+  function findRecipeByName(spoken: string): SavedRecipe | undefined {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const s = norm(spoken);
+    // Exact match
+    let hit = data.recipes.find((r) => norm(r.name) === s);
+    if (hit) return hit;
+    // Substring match
+    hit = data.recipes.find((r) => norm(r.name).includes(s) || s.includes(norm(r.name)));
+    if (hit) return hit;
+    // Word-overlap (≥50% of words must match)
+    const sWords = s.split(/\s+/);
+    let best: SavedRecipe | undefined;
+    let bestScore = 0;
+    for (const r of data.recipes) {
+      const rWords = norm(r.name).split(/\s+/);
+      const overlap = sWords.filter((w) => rWords.includes(w)).length;
+      const score = overlap / Math.max(sWords.length, rWords.length);
+      if (score > bestScore && score >= 0.5) { bestScore = score; best = r; }
+    }
+    return best;
+  }
+
   function handleDeviceChange(device: string) {
     setForm((f) => {
       const newFilter = FILTER_PRESELECT[device] ?? f.filter ?? '';
@@ -403,7 +425,14 @@ export default function BrewForm() {
 
       setVoiceParsing(true);
       try {
-        const fields = await parseVoiceWithClaude(transcript, getApiKey() ?? undefined);
+        const recipeNames = data.recipes.map((r) => r.name);
+        const fields = await parseVoiceWithClaude(transcript, getApiKey() ?? undefined, recipeNames);
+        // If a saved recipe was mentioned, apply it first so all its params load in,
+        // then overlay any explicit adjustments spoken on top.
+        if (fields.brewRecipeName) {
+          const matched = findRecipeByName(fields.brewRecipeName);
+          if (matched) applyRecipe(matched);
+        }
         applyVoiceFields(fields);
       } catch (err: any) {
         alert(`Voice parse failed: ${err.message || 'Check your connection and try again.'}`);

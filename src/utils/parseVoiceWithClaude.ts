@@ -83,7 +83,7 @@ export interface VoiceBrewFields {
   lessSourness?: boolean;
 }
 
-const PROMPT = (transcript: string) => `You are a specialty coffee brew log parser. A barista just described their brew session aloud. Extract every piece of information you can find.
+const PROMPT = (transcript: string, knownRecipes: string[] = []) => `You are a specialty coffee brew log parser. A barista just described their brew session aloud. Extract every piece of information you can find.
 
 SLIDER SCALE — map spoken descriptors to 1–10:
   "none / zero / not present" → 0–1
@@ -102,6 +102,7 @@ PERCEIVED EXTRACTION hints:
   "balanced" / "dialled in" / "on point" → "Balanced"
   "over" / "overextracted" / "bitter" / "harsh" → "Over"
 
+Known saved recipes (fuzzy match → return exact string): ${JSON.stringify(knownRecipes)}
 Known brewing devices (fuzzy match → return exact string): ${JSON.stringify(KNOWN_DEVICES)}
 Known filters (fuzzy match → return exact string): ${JSON.stringify(KNOWN_FILTERS)}
 Known grinders (fuzzy match → return exact string): ${JSON.stringify(KNOWN_GRINDERS)}
@@ -172,11 +173,12 @@ Transcript: "${transcript}"`;
 export async function parseVoiceWithClaude(
   transcript: string,
   apiKey?: string,
+  knownRecipes: string[] = [],
 ): Promise<VoiceBrewFields> {
   const body = {
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1536,
-    messages: [{ role: 'user', content: PROMPT(transcript) }],
+    messages: [{ role: 'user', content: PROMPT(transcript, knownRecipes) }],
   };
 
   const headers: Record<string, string> = {
