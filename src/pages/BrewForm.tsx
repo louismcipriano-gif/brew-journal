@@ -488,7 +488,13 @@ export default function BrewForm() {
     e.preventDefault();
     if (!form.coffeeId) return alert('Please select a coffee.');
     const brewScore = calcBrewScore(form.flavorProfile);
-    const payload = { ...form, isQuickLog: !showAdvanced, brewScore };
+    const brewRatio = form.coffeeDose > 0
+      ? Math.round((form.waterAmount / form.coffeeDose) * 100) / 100
+      : undefined;
+    const bloomRatio = form.pourOverDetails?.bloomAmount && form.coffeeDose > 0
+      ? Math.round((form.pourOverDetails.bloomAmount / form.coffeeDose) * 100) / 100
+      : undefined;
+    const payload = { ...form, isQuickLog: !showAdvanced, brewScore, brewRatio, bloomRatio };
     if (isEdit && editId) {
       updateBrew(editId, payload);
       navigate(`/brews/${editId}`);

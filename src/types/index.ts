@@ -136,6 +136,8 @@ export interface Brew {
   extractionYield?: number;
   flavorProfile: FlavorProfile;
   brewScore?: number;
+  brewRatio?: number;
+  bloomRatio?: number;
   isGoToRecipe: boolean;
   createdAt: string;
 }
