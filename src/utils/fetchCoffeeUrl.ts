@@ -4,7 +4,7 @@ export async function fetchCoffeeFromUrl(
 ): Promise<Record<string, string>> {
   let pageText = '';
 
-  // ── 1. Try Shopify product JSON (works without a proxy — Shopify sets CORS *) ──
+  // ── 1. Shopify product JSON (CORS * — no proxy needed) ──────────────────────
   const productMatch = url.match(/\/products\/([^/?#]+)/);
   if (productMatch) {
     try {
@@ -16,22 +16,49 @@ export async function fetchCoffeeFromUrl(
         const json = await resp.json();
         const p = json?.product;
         if (p) {
+          // Body HTML → readable text (preserve line breaks between elements)
           const div = document.createElement('div');
           div.innerHTML = p.body_html ?? '';
-          const bodyText = (div.textContent ?? '').replace(/\s+/g, ' ').trim();
-          const tags = Array.isArray(p.tags) ? p.tags.join(', ') : (p.tags ?? '');
+          // Insert newlines so block elements don't smash together
+          div.querySelectorAll('p,li,br,h1,h2,h3,h4,td,th').forEach((el) => {
+            el.insertAdjacentText('afterend', '\n');
+          });
+          const bodyText = (div.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
+
+          // Tags (often contain process, origin, roast level, tasting notes)
+          const tags = Array.isArray(p.tags)
+            ? p.tags.join(', ')
+            : (p.tags ?? '');
+
+          // Price & bag size from variants
+          const variants: any[] = p.variants ?? [];
+          const variantLines = variants
+            .slice(0, 5)
+            .map((v: any) => {
+              const parts: string[] = [];
+              if (v.title && v.title !== 'Default Title') parts.push(`size: ${v.title}`);
+              if (v.price) parts.push(`price: $${v.price}`);
+              if (v.weight && v.weight_unit) parts.push(`weight: ${v.weight}${v.weight_unit}`);
+              return parts.join(', ');
+            })
+            .filter(Boolean);
+
           pageText = [
             `Product title: ${p.title}`,
             `Vendor/Roaster: ${p.vendor}`,
             `Tags: ${tags}`,
-            `Description: ${bodyText}`,
-          ].join('\n').slice(0, 6000);
+            variantLines.length ? `Variants:\n${variantLines.join('\n')}` : '',
+            `Description:\n${bodyText}`,
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+            .slice(0, 8000);
         }
       }
     } catch { /* fall through */ }
   }
 
-  // ── 2. CORS proxy fallback for non-Shopify or failed JSON fetch ─────────────
+  // ── 2. CORS proxy fallback for non-Shopify / failed JSON ────────────────────
   if (!pageText) {
     try {
       const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
@@ -41,7 +68,10 @@ export async function fetchCoffeeFromUrl(
         const div = document.createElement('div');
         div.innerHTML = html;
         div.querySelectorAll('script, style, nav, footer, header, [aria-hidden]').forEach((el) => el.remove());
-        pageText = (div.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 6000);
+        div.querySelectorAll('p,li,br,h1,h2,h3,h4,td,th').forEach((el) => {
+          el.insertAdjacentText('afterend', '\n');
+        });
+        pageText = (div.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 8000);
       }
     } catch { /* fall through */ }
   }
@@ -68,17 +98,24 @@ export async function fetchCoffeeFromUrl(
       messages: [
         {
           role: 'user',
-          content: `Extract coffee details from this product page. Return ONLY a JSON object with these fields (omit any you cannot find):
-- roaster (roaster or company name)
-- coffeeName (the specific coffee or product name, e.g. "Buttercream", "La Capilla", "Querocoto")
-- producer (farm or producer name, if different from roaster)
-- countryOrigin (origin country e.g. "Ethiopia")
-- region (specific region, village, or farm area)
-- processingMethod (processing method — use standard names like Washed, Natural, Honey, Anaerobic, Thermal Shock, Wet-Hulled, or the exact text from the page)
-- roastLevel (exactly one of: Light, Light-Medium, Medium, Medium-Dark, Dark)
-- varietal (coffee variety e.g. "Heirloom", "Gesha", "Bourbon", "Typica")
-- elevation (e.g. "1800-2200 masl")
-- tastingNotes (roaster's flavor descriptors, comma-separated string)
+          content: `Extract coffee product details from this page content. Be thorough — check the description, tags, and all text carefully for tasting notes, elevation, price, and other details.
+
+Return ONLY a valid JSON object with these exact field names. Omit any field you cannot confidently determine:
+{
+  "roaster": "roaster or company name",
+  "coffeeName": "the specific coffee name (e.g. 'Peru Dominga Carrasco' — not the full product title, just the coffee identifier)",
+  "producer": "producer, farmer, or cooperative name if mentioned",
+  "farm": "specific farm name if mentioned (different from producer)",
+  "countryOrigin": "origin country (e.g. 'Ethiopia', 'Peru', 'Colombia')",
+  "region": "specific region, department, or growing area",
+  "processingMethod": "exactly one of: Washed, Natural, Honey, Washed Anaerobic, Natural/Honey Anaerobic, Thermal Shock, Co-Ferment, Hybrid/Other",
+  "roastLevel": "exactly one of: Light, Light-Medium, Medium, Medium-Dark, Dark",
+  "varietal": "coffee variety / cultivar (e.g. 'Yellow Caturra', 'Gesha', 'Heirloom')",
+  "elevation": "elevation as written on the page (e.g. '1800–2200 masl')",
+  "tastingNotes": "roaster's flavor descriptors as a comma-separated string (e.g. 'jasmine, peach, honey, brown sugar')",
+  "price": "price as a decimal number string (e.g. '24.00') — use the smallest / base variant price",
+  "gramsPerBag": "bag weight in grams as an integer string — convert oz to grams (1 oz = 28.35 g), e.g. '250' or '340'"
+}
 
 Page content:
 ${pageText}

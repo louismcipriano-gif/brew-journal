@@ -164,20 +164,25 @@ export function CoffeeForm() {
       const apiKey = getApiKey() || undefined;
       const result = await fetchCoffeeFromUrl(urlInput.trim(), apiKey);
       const validRoasts: RoastLevel[] = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
+      const parsedPrice = parseFloat(result.price);
+      const parsedGrams = parseInt(result.gramsPerBag);
       setForm((f) => ({
         ...f,
-        roaster: result.roaster || f.roaster,
-        coffeeName: result.coffeeName || f.coffeeName,
-        producer: result.producer || f.producer,
-        countryOrigin: result.countryOrigin || f.countryOrigin,
-        region: result.region || f.region,
-        varietal: result.varietal || f.varietal,
-        elevation: result.elevation || f.elevation,
-        tastingNotes: result.tastingNotes || f.tastingNotes,
-        processingMethod: result.processingMethod || f.processingMethod,
+        roaster:           result.roaster           || f.roaster,
+        coffeeName:        result.coffeeName        || f.coffeeName,
+        producer:          result.producer          || f.producer,
+        farm:              result.farm              || f.farm,
+        countryOrigin:     result.countryOrigin     || f.countryOrigin,
+        region:            result.region            || f.region,
+        varietal:          result.varietal          || f.varietal,
+        elevation:         result.elevation         || f.elevation,
+        tastingNotes:      result.tastingNotes      || f.tastingNotes,
+        processingMethod:  result.processingMethod  || f.processingMethod,
         roastLevel: validRoasts.includes(result.roastLevel as RoastLevel)
           ? (result.roastLevel as RoastLevel)
           : f.roastLevel,
+        price:       !isNaN(parsedPrice) && parsedPrice > 0 ? parsedPrice : f.price,
+        gramsPerBag: !isNaN(parsedGrams) && parsedGrams > 0 ? parsedGrams : f.gramsPerBag,
       }));
       setUrlInput('');
     } catch (err: any) {
