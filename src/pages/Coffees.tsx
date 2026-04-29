@@ -11,10 +11,14 @@ import {
 import { scanCoffeeBag } from '../utils/scanBag';
 import { fetchCoffeeFromUrl } from '../utils/fetchCoffeeUrl';
 import { getApiKey } from './Settings';
-import type { Coffee as CoffeeType, ProcessingMethod, RoastLevel } from '../types';
+import type { Coffee as CoffeeType, ProcessingMethod, RoastLevel, CoffeeStyle } from '../types';
 
-const PROCESSING: ProcessingMethod[] = ['Washed', 'Natural', 'Honey', 'Anaerobic', 'Thermal Shock', 'Wet-Hulled', 'Other'];
+const PROCESSING: ProcessingMethod[] = [
+  'Washed', 'Honey', 'Natural', 'Washed Anaerobic',
+  'Natural/Honey Anaerobic', 'Thermal Shock', 'Co-Ferment', 'Hybrid/Other',
+];
 const ROASTS: RoastLevel[] = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
+const COFFEE_STYLES: CoffeeStyle[] = ['Terroir-Focused', 'Fruity', 'Funky', 'Experimental'];
 
 type BrewingStatus = 'brewing' | 'resting' | 'finished';
 
@@ -28,6 +32,7 @@ const blankCoffee: Omit<CoffeeType, 'id' | 'createdAt'> = {
   roaster: '',
   coffeeName: '',
   producer: '',
+  farm: '',
   countryOrigin: '',
   region: '',
   roastLevel: 'Light',
@@ -39,6 +44,7 @@ const blankCoffee: Omit<CoffeeType, 'id' | 'createdAt'> = {
   price: 0,
   gramsPerBag: 0,
   score: null,
+  coffeeStyle: [],
   isResting: false,
   isFinished: false,
   isFavorite: false,
@@ -64,6 +70,7 @@ export function CoffeeForm() {
           roaster: existing.roaster,
           coffeeName: existing.coffeeName ?? '',
           producer: existing.producer ?? '',
+          farm: existing.farm ?? '',
           countryOrigin: existing.countryOrigin,
           region: existing.region,
           roastLevel: existing.roastLevel,
@@ -75,6 +82,7 @@ export function CoffeeForm() {
           price: existing.price,
           gramsPerBag: existing.gramsPerBag,
           score: existing.score,
+          coffeeStyle: existing.coffeeStyle ?? [],
           isResting: existing.isResting ?? false,
           isFinished: existing.isFinished ?? false,
           isFavorite: existing.isFavorite ?? false,
@@ -254,23 +262,45 @@ export function CoffeeForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Roaster *" value={form.roaster} onChange={(e) => set('roaster', e.target.value)} placeholder="e.g. Onyx Coffee Lab" required />
             <Input label="Coffee Name" value={form.coffeeName ?? ''} onChange={(e) => set('coffeeName', e.target.value)} placeholder="e.g. Buttercream, Guji Natural" />
-            <Input label="Producer / Farm" value={form.producer ?? ''} onChange={(e) => set('producer', e.target.value)} placeholder="e.g. La Capilla, El Vergel" />
+            <Input label="Producer" value={form.producer ?? ''} onChange={(e) => set('producer', e.target.value)} placeholder="e.g. La Capilla, El Vergel" />
+            <Input label="Farm" value={form.farm ?? ''} onChange={(e) => set('farm', e.target.value)} placeholder="e.g. Finca El Paraíso" />
             <Input label="Country of Origin *" value={form.countryOrigin} onChange={(e) => set('countryOrigin', e.target.value)} placeholder="e.g. Ethiopia" required />
             <Input label="Region" value={form.region} onChange={(e) => set('region', e.target.value)} placeholder="e.g. Yirgacheffe" />
             <Input label="Varietal" value={form.varietal} onChange={(e) => set('varietal', e.target.value)} placeholder="e.g. Heirloom" />
             <Input label="Elevation" value={form.elevation} onChange={(e) => set('elevation', e.target.value)} placeholder="e.g. 1800–2200 masl" />
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Processing Method</label>
-              <input
-                list="processing-datalist"
-                value={form.processingMethod}
-                onChange={(e) => set('processingMethod', e.target.value)}
-                placeholder="Select or type…"
-                className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors"
-              />
-              <datalist id="processing-datalist">
-                {PROCESSING.map((p) => <option key={p} value={p} />)}
-              </datalist>
+            <Select
+              label="Processing Method"
+              value={form.processingMethod}
+              onChange={(e) => set('processingMethod', e.target.value as ProcessingMethod)}
+              placeholder="— Select method —"
+              options={PROCESSING.map((p) => ({ value: p, label: p }))}
+            />
+          </div>
+
+          {/* Coffee Style */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Coffee Style</label>
+            <div className="flex flex-wrap gap-2">
+              {COFFEE_STYLES.map((style) => {
+                const active = (form.coffeeStyle ?? []).includes(style);
+                return (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() => {
+                      const current = form.coffeeStyle ?? [];
+                      set('coffeeStyle', active ? current.filter((s) => s !== style) : [...current, style]);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-150 ${
+                      active
+                        ? 'bg-brew-primary/15 border-brew-primary text-brew-primary-light'
+                        : 'bg-transparent border-brew-border text-brew-faint hover:border-brew-muted'
+                    }`}
+                  >
+                    {active ? '✓ ' : ''}{style}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </Card>
@@ -559,7 +589,22 @@ export function CoffeeDetail() {
               </span>
             )}
           </div>
-          {coffee.producer && <p className="text-brew-faint text-sm mt-1">Producer: {coffee.producer}</p>}
+          {(coffee.producer || coffee.farm) && (
+            <p className="text-brew-faint text-sm mt-1">
+              {coffee.producer && <span>Producer: {coffee.producer}</span>}
+              {coffee.producer && coffee.farm && <span> · </span>}
+              {coffee.farm && <span>Farm: {coffee.farm}</span>}
+            </p>
+          )}
+          {coffee.coffeeStyle && coffee.coffeeStyle.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {coffee.coffeeStyle.map((style) => (
+                <span key={style} className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brew-primary/10 text-brew-primary-light border border-brew-primary/20">
+                  {style}
+                </span>
+              ))}
+            </div>
+          )}
           {coffee.varietal && (
             <p className="text-brew-faint text-sm mt-0.5">{coffee.varietal}{coffee.elevation ? ` · ${coffee.elevation}` : ''}</p>
           )}

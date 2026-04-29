@@ -17,8 +17,25 @@ const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroP
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
 const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
+const POUR_STYLES = ['Circular', 'Center', 'Hybrid'] as const;
 const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
+const BREWING_DEVICES = [
+  'V60', 'Orea 01', 'Orea Z1', 'V60 Switch', 'Mugen Switch',
+  'Cafec Flower', 'Kalita Wave', 'Origami Cone', 'Origami Flat',
+  'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
+  'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
+  'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot',
+];
+const FILTERS = [
+  'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
+  'Orea Flat', 'Origami Wave', 'Kalita Wave', 'April Wave', 'Kono', 'Melodrip Column',
+];
+const FILTER_PRESELECT: Record<string, string> = {
+  'Orea Z1': 'Sibarist Z1',
+  'Melodrip Column': 'Melodrip Column',
+  'Cafec Deep 27': 'Deep 27',
+};
 
 const defaultFlavorProfile: FlavorProfile = {
   acidity: 5,
@@ -67,6 +84,7 @@ function recipeToFormFields(r: SavedRecipe): Partial<BrewFormData> {
   return {
     brewMethod: r.brewMethod,
     brewingDevice: r.brewingDevice,
+    filter: r.filter ?? '',
     coffeeDose: r.coffeeDose,
     waterAmount: r.waterAmount,
     waterTempF: r.waterTempF,
@@ -166,6 +184,7 @@ export default function BrewForm() {
       grindSetting: '',
       grindSize: '',
       brewingDevice: '',
+      filter: '',
       coffeeDose: 15,
       waterAmount: 240,
       waterTempF: 205,
@@ -286,6 +305,7 @@ export default function BrewForm() {
         source: recipeSaveSource.trim(),
         brewMethod: form.brewMethod,
         brewingDevice: form.brewingDevice,
+        filter: form.filter,
         coffeeDose: form.coffeeDose,
         waterAmount: form.waterAmount,
         waterTempF: form.waterTempF,
@@ -483,11 +503,25 @@ export default function BrewForm() {
               onChange={(e) => set('brewMethod', e.target.value as BrewMethod)}
               options={BREW_METHODS.map((m) => ({ value: m, label: m }))}
             />
-            <Input
+            <Select
               label="Brewing Device"
               value={form.brewingDevice}
-              onChange={(e) => set('brewingDevice', e.target.value)}
-              placeholder="e.g. Hario V60, Gaggia Classic"
+              onChange={(e) => {
+                const device = e.target.value;
+                set('brewingDevice', device);
+                if (FILTER_PRESELECT[device]) {
+                  set('filter', FILTER_PRESELECT[device]);
+                }
+              }}
+              placeholder="— Select device —"
+              options={BREWING_DEVICES.map((d) => ({ value: d, label: d }))}
+            />
+            <Select
+              label="Filter"
+              value={form.filter ?? ''}
+              onChange={(e) => set('filter', e.target.value)}
+              placeholder="— Select filter —"
+              options={FILTERS.map((f) => ({ value: f, label: f }))}
             />
             <Select
               label="Grinder"
@@ -700,6 +734,13 @@ export default function BrewForm() {
                 value={form.pourOverDetails.pourSpeed}
                 onChange={(e) => setPO('pourSpeed', e.target.value as PourHeightSpeed)}
                 options={POUR_SPEEDS.map((s) => ({ value: s, label: s }))}
+              />
+              <Select
+                label="Pour Style"
+                value={form.pourOverDetails.pourStyle ?? ''}
+                onChange={(e) => setPO('pourStyle', (e.target.value as 'Circular' | 'Center' | 'Hybrid') || undefined)}
+                placeholder="— Select style —"
+                options={POUR_STYLES.map((s) => ({ value: s, label: s }))}
               />
               <Select
                 label="Agitation"

@@ -1,11 +1,14 @@
 export type ProcessingMethod =
   | 'Washed'
-  | 'Natural'
   | 'Honey'
-  | 'Anaerobic'
+  | 'Natural'
+  | 'Washed Anaerobic'
+  | 'Natural/Honey Anaerobic'
   | 'Thermal Shock'
-  | 'Wet-Hulled'
-  | 'Other';
+  | 'Co-Ferment'
+  | 'Hybrid/Other';
+
+export type CoffeeStyle = 'Terroir-Focused' | 'Fruity' | 'Funky' | 'Experimental';
 
 export type RoastLevel =
   | 'Light'
@@ -30,6 +33,7 @@ export interface Coffee {
   roaster: string;
   coffeeName?: string;
   producer?: string;
+  farm?: string;
   countryOrigin: string;
   region: string;
   roastLevel: RoastLevel;
@@ -41,6 +45,7 @@ export interface Coffee {
   price: number;
   gramsPerBag: number;
   score: number | null;
+  coffeeStyle?: CoffeeStyle[];
   isResting?: boolean;
   isFinished?: boolean;
   isFavorite?: boolean;
@@ -54,6 +59,7 @@ export interface PourOverDetails {
   melodrip: boolean;
   pourHeight: PourHeightSpeed;
   pourSpeed: PourHeightSpeed;
+  pourStyle?: 'Circular' | 'Center' | 'Hybrid';
   agitation: PourHeightSpeed;
   bloomTime: number;
   totalBrewTime: number;
@@ -109,6 +115,7 @@ export interface Brew {
   grindSetting: string;
   grindSize?: string;
   brewingDevice: string;
+  filter?: string;
   coffeeDose: number;
   waterAmount: number;
   waterTempF: number;
@@ -143,6 +150,7 @@ export interface SavedRecipe {
   source: string;
   brewMethod: BrewMethod;
   brewingDevice: string;
+  filter?: string;
   coffeeDose: number;
   waterAmount: number;
   waterTempF: number;
