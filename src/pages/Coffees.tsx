@@ -17,7 +17,7 @@ const PROCESSING: ProcessingMethod[] = [
   'Washed', 'Honey', 'Natural', 'Washed Anaerobic',
   'Natural/Honey Anaerobic', 'Thermal Shock', 'Co-Ferment', 'Hybrid/Other',
 ];
-const ROASTS: RoastLevel[] = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
+const ROASTS: RoastLevel[] = ['Ultra Light', 'Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
 const COFFEE_STYLES: CoffeeStyle[] = ['Terroir-Focused', 'Fruity', 'Funky', 'Experimental'];
 
 type BrewingStatus = 'brewing' | 'resting' | 'finished';
@@ -126,7 +126,7 @@ export function CoffeeForm() {
         const mediaType = header.split(';')[0].replace('data:', '');
         try {
           const result = await scanCoffeeBag(base64, mediaType, apiKey);
-          const validRoasts: RoastLevel[] = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
+          const validRoasts: RoastLevel[] = ['Ultra Light', 'Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
           setForm((f) => ({
             ...f,
             roaster: result.roaster || f.roaster,
@@ -163,7 +163,7 @@ export function CoffeeForm() {
     try {
       const apiKey = getApiKey() || undefined;
       const result = await fetchCoffeeFromUrl(urlInput.trim(), apiKey);
-      const validRoasts: RoastLevel[] = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
+      const validRoasts: RoastLevel[] = ['Ultra Light', 'Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
       const parsedPrice = parseFloat(result.price);
       const parsedGrams = parseInt(result.gramsPerBag);
       setForm((f) => ({

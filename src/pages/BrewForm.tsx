@@ -495,7 +495,27 @@ export default function BrewForm() {
     const bloomRatio = form.pourOverDetails?.bloomAmount && form.coffeeDose > 0
       ? Math.round((form.pourOverDetails.bloomAmount / form.coffeeDose) * 100) / 100
       : undefined;
-    const payload = { ...form, isQuickLog: !showAdvanced, brewScore, brewRatio, bloomRatio };
+
+    // Snapshot coffee details at brew time for analytics (avoids join at query time)
+    const coffee = getCoffee(form.coffeeId);
+    const roastDays = coffee?.roastDate
+      ? daysOffRoast(coffee.roastDate, form.brewDate)
+      : undefined;
+
+    const payload = {
+      ...form,
+      isQuickLog: !showAdvanced,
+      brewScore,
+      brewRatio,
+      bloomRatio,
+      daysOffRoast:            roastDays,
+      coffeeProcessingMethod:  coffee?.processingMethod,
+      coffeeVarietal:          coffee?.varietal,
+      coffeeOrigin:            coffee?.countryOrigin,
+      coffeeRegion:            coffee?.region,
+      coffeeElevation:         coffee?.elevation,
+      coffeeRoastLevel:        coffee?.roastLevel,
+    };
     if (isEdit && editId) {
       updateBrew(editId, payload);
       navigate(`/brews/${editId}`);

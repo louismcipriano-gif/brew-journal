@@ -11,6 +11,7 @@ export type ProcessingMethod =
 export type CoffeeStyle = 'Terroir-Focused' | 'Fruity' | 'Funky' | 'Experimental';
 
 export type RoastLevel =
+  | 'Ultra Light'
   | 'Light'
   | 'Light-Medium'
   | 'Medium'
@@ -138,6 +139,14 @@ export interface Brew {
   brewScore?: number;
   brewRatio?: number;
   bloomRatio?: number;
+  // Coffee snapshot — denormalised at save time for analytics
+  daysOffRoast?: number;
+  coffeeProcessingMethod?: string;
+  coffeeVarietal?: string;
+  coffeeOrigin?: string;
+  coffeeRegion?: string;
+  coffeeElevation?: string;
+  coffeeRoastLevel?: string;
   isGoToRecipe: boolean;
   createdAt: string;
 }
