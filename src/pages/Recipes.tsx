@@ -35,6 +35,28 @@ const FILTER_PRESELECT: Record<string, string> = {
   'Melodrip Column': 'Melodrip Column',
   'Cafec Deep 27': 'Deep 27',
 };
+const DEVICE_SHAPE: Record<string, 'Cone' | 'Flat'> = {
+  'V60': 'Cone', 'Orea 01': 'Flat', 'Orea Z1': 'Flat',
+  'V60 Switch': 'Cone', 'Mugen Switch': 'Cone', 'Cafec Flower': 'Cone',
+  'Kalita Wave': 'Flat', 'Origami Cone': 'Cone', 'Origami Flat': 'Flat',
+  'Cafec Deep 27': 'Cone', 'Melodrip Column': 'Cone', 'Kono': 'Cone',
+  'April Brewer': 'Flat', 'Hario Mugen': 'Cone', 'Hario Cloth': 'Cone',
+  'Torch Mountain': 'Flat', 'Orea V3': 'Flat',
+};
+const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'filter-dependent'> = {
+  'V60': 'Standard', 'Orea 01': 'filter-dependent', 'Orea Z1': 'No Bypass',
+  'V60 Switch': 'Standard', 'Mugen Switch': 'Low Bypass', 'Cafec Flower': 'Standard',
+  'Kalita Wave': 'Standard', 'Origami Cone': 'Standard', 'Origami Flat': 'Standard',
+  'Cafec Deep 27': 'Standard', 'Melodrip Column': 'No Bypass', 'Kono': 'Low Bypass',
+  'April Brewer': 'Standard', 'Hario Mugen': 'Low Bypass', 'Hario Cloth': 'Standard',
+  'Torch Mountain': 'Standard', 'Orea V3': 'filter-dependent',
+};
+function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass' | 'No Bypass' | undefined {
+  const val = DEVICE_BYPASS[device];
+  if (!val) return undefined;
+  if (val === 'filter-dependent') return filter === 'Orea Flat' ? 'Low Bypass' : 'Standard';
+  return val;
+}
 
 const ACCENTUATE_COLORS: Record<RecipeAccentuates, string> = {
   Sweetness: '#b87d28',
@@ -52,6 +74,8 @@ const blankRecipe: Omit<SavedRecipe, 'id' | 'createdAt'> = {
   brewMethod: 'Pour Over',
   brewingDevice: '',
   filter: '',
+  brewerShape: undefined,
+  bypass: undefined,
   coffeeDose: 15,
   waterAmount: 240,
   waterTempF: 205,
@@ -92,6 +116,8 @@ export function RecipeForm() {
           brewMethod: existing.brewMethod,
           brewingDevice: existing.brewingDevice,
           filter: existing.filter ?? '',
+          brewerShape: existing.brewerShape,
+          bypass: existing.bypass,
           coffeeDose: existing.coffeeDose,
           waterAmount: existing.waterAmount,
           waterTempF: existing.waterTempF,
@@ -140,6 +166,27 @@ export function RecipeForm() {
     setForm((f) => ({
       ...f,
       espressoDetails: { ...(f.espressoDetails ?? { totalYield: 36, brewTime: 28, maxPressure: 9 }), [k]: v },
+    }));
+  }
+
+  function handleDeviceChange(device: string) {
+    setForm((f) => {
+      const newFilter = FILTER_PRESELECT[device] ?? f.filter ?? '';
+      return {
+        ...f,
+        brewingDevice: device,
+        ...(FILTER_PRESELECT[device] ? { filter: FILTER_PRESELECT[device] } : {}),
+        ...(DEVICE_SHAPE[device] ? { brewerShape: DEVICE_SHAPE[device] } : {}),
+        bypass: resolveBypass(device, newFilter) ?? f.bypass,
+      };
+    });
+  }
+
+  function handleFilterChange(filter: string) {
+    setForm((f) => ({
+      ...f,
+      filter,
+      bypass: resolveBypass(f.brewingDevice, filter) ?? f.bypass,
     }));
   }
 
@@ -260,23 +307,59 @@ export function RecipeForm() {
             <Select
               label="Brewing Device"
               value={form.brewingDevice}
-              onChange={(e) => {
-                const device = e.target.value;
-                set('brewingDevice', device);
-                if (FILTER_PRESELECT[device]) {
-                  set('filter', FILTER_PRESELECT[device]);
-                }
-              }}
+              onChange={(e) => handleDeviceChange(e.target.value)}
               placeholder="— Select device —"
               options={BREWING_DEVICES.map((d) => ({ value: d, label: d }))}
             />
             <Select
               label="Filter"
               value={form.filter ?? ''}
-              onChange={(e) => set('filter', e.target.value)}
+              onChange={(e) => handleFilterChange(e.target.value)}
               placeholder="— Select filter —"
               options={FILTERS.map((f) => ({ value: f, label: f }))}
             />
+          </div>
+
+          {/* Brewer Shape + Bypass tags */}
+          <div className="flex flex-col gap-3 pt-1 border-t border-brew-border">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Brewer Shape</label>
+              <div className="flex gap-2">
+                {(['Cone', 'Flat'] as const).map((shape) => (
+                  <button
+                    key={shape}
+                    type="button"
+                    onClick={() => set('brewerShape', form.brewerShape === shape ? undefined : shape)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                      form.brewerShape === shape
+                        ? 'bg-brew-primary/15 border-brew-primary text-brew-primary-light'
+                        : 'bg-transparent border-brew-border text-brew-faint hover:border-brew-muted'
+                    }`}
+                  >
+                    {shape}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Bypass</label>
+              <div className="flex gap-2 flex-wrap">
+                {(['Standard', 'Low Bypass', 'No Bypass'] as const).map((bp) => (
+                  <button
+                    key={bp}
+                    type="button"
+                    onClick={() => set('bypass', form.bypass === bp ? undefined : bp)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                      form.bypass === bp
+                        ? 'bg-brew-primary/15 border-brew-primary text-brew-primary-light'
+                        : 'bg-transparent border-brew-border text-brew-faint hover:border-brew-muted'
+                    }`}
+                  >
+                    {bp}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </Card>
 
@@ -695,6 +778,8 @@ export function RecipeDetail() {
             {[
               { label: 'Brewing Device', value: recipe.brewingDevice || '—' },
               { label: 'Filter', value: recipe.filter || '—' },
+              { label: 'Brewer Shape', value: recipe.brewerShape || '—' },
+              { label: 'Bypass', value: recipe.bypass || '—' },
               { label: 'Grind Size', value: recipe.grindSize || '—' },
               { label: 'Coffee Dose', value: `${recipe.coffeeDose}g` },
               { label: 'Water', value: `${recipe.waterAmount}g` },

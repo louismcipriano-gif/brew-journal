@@ -116,6 +116,8 @@ export interface Brew {
   grindSize?: string;
   brewingDevice: string;
   filter?: string;
+  brewerShape?: 'Cone' | 'Flat';
+  bypass?: 'Standard' | 'Low Bypass' | 'No Bypass';
   coffeeDose: number;
   waterAmount: number;
   waterTempF: number;
@@ -151,6 +153,8 @@ export interface SavedRecipe {
   brewMethod: BrewMethod;
   brewingDevice: string;
   filter?: string;
+  brewerShape?: 'Cone' | 'Flat';
+  bypass?: 'Standard' | 'Low Bypass' | 'No Bypass';
   coffeeDose: number;
   waterAmount: number;
   waterTempF: number;
