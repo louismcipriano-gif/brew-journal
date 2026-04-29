@@ -295,9 +295,32 @@ export default function BrewForm() {
       if (v.brewRecipeName) u.brewRecipeName = v.brewRecipeName;
 
       // Pour over details
-      if (v.pourStyle) {
-        u.pourOverDetails = { ...(u.pourOverDetails ?? defaultPourOver), pourStyle: v.pourStyle };
+      if (u.pourOverDetails || v.pourStyle || v.melodrip != null || v.doubleBloom != null
+        || v.varyingPourSpeed != null || v.totalPours || v.bloomAmount || v.bloomTime || v.totalBrewTime) {
+        const po = { ...(u.pourOverDetails ?? defaultPourOver) };
+        if (v.pourStyle)           po.pourStyle        = v.pourStyle;
+        if (v.melodrip      != null) po.melodrip        = v.melodrip;
+        if (v.doubleBloom   != null) po.doubleBloom     = v.doubleBloom;
+        if (v.varyingPourSpeed != null) po.varyingPourSpeed = v.varyingPourSpeed;
+        if (v.totalPours)          po.totalPours       = v.totalPours;
+        if (v.bloomAmount)         po.bloomAmount      = v.bloomAmount;
+        if (v.bloomTime)           po.bloomTime        = v.bloomTime;
+        if (v.totalBrewTime)       po.totalBrewTime    = v.totalBrewTime;
+        u.pourOverDetails = po;
       }
+
+      // Espresso details
+      if (v.espressoYield || v.espressoBrewTime || v.espressoMaxPressure) {
+        const esp = { ...(u.espressoDetails ?? defaultEspresso) };
+        if (v.espressoYield)       esp.totalYield   = v.espressoYield;
+        if (v.espressoBrewTime)    esp.brewTime     = v.espressoBrewTime;
+        if (v.espressoMaxPressure) esp.maxPressure  = v.espressoMaxPressure;
+        u.espressoDetails = esp;
+      }
+
+      // Water recipe & quick score
+      if (v.waterRecipe) u.waterRecipe = v.waterRecipe;
+      if (v.quickScore)  u.quickScore  = v.quickScore;
 
       // Flavor profile
       const fp = { ...f.flavorProfile };

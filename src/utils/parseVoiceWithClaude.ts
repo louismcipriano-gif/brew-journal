@@ -18,7 +18,7 @@ const KNOWN_GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero']
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 
 export interface VoiceBrewFields {
-  // Setup
+  // Brew setup
   brewMethod?: string;
   brewingDevice?: string;
   grinder?: string;
@@ -33,8 +33,22 @@ export interface VoiceBrewFields {
   waterAmount?: number;
   waterTempF?: number;
   waterPPM?: number;
+  waterRecipe?: string;
   brewRecipeName?: string;
-  // Flavor profile
+  quickScore?: number;
+  // Pour over details
+  totalPours?: number;
+  bloomAmount?: number;
+  bloomTime?: number;
+  totalBrewTime?: number;
+  melodrip?: boolean;
+  doubleBloom?: boolean;
+  varyingPourSpeed?: boolean;
+  // Espresso details
+  espressoYield?: number;
+  espressoBrewTime?: number;
+  espressoMaxPressure?: number;
+  // Flavor profile sliders (0–10)
   acidity?: number;
   sweetness?: number;
   body?: number;
@@ -44,6 +58,7 @@ export interface VoiceBrewFields {
   finish?: number;
   astringency?: number;
   sourness?: number;
+  // Flavor profile text & tags
   flavorNotes?: string;
   perceivedExtraction?: 'Under' | 'Balanced' | 'Over';
   suggestedChange?: string;
@@ -57,43 +72,68 @@ export interface VoiceBrewFields {
   lessSourness?: boolean;
 }
 
-const PROMPT = (transcript: string) => `You are a specialty coffee brew log parser. A barista just described their brew session aloud.
+const PROMPT = (transcript: string) => `You are a specialty coffee brew log parser. A barista just described their brew session aloud. Extract every piece of information you can find.
 
-Extract every piece of information into this JSON structure. Only include fields that were clearly mentioned.
-For slider values (acidity, sweetness, etc.) map descriptors to a 1–10 scale:
-  "none/zero" → 0–1, "low/mild" → 2–3, "medium/moderate" → 4–6, "high/good" → 7–8, "very high/excellent" → 9–10
+SLIDER SCALE — map spoken descriptors to 1–10:
+  "none / zero / not present" → 0–1
+  "low / mild / slight" → 2–3
+  "medium / moderate / decent" → 4–6
+  "high / good / strong / bright" → 7–8
+  "very high / excellent / intense / incredible" → 9–10
 
-Known brewing devices (match closely, return exact string): ${JSON.stringify(KNOWN_DEVICES)}
-Known filters (match closely, return exact string): ${JSON.stringify(KNOWN_FILTERS)}
-Known grinders (match closely, return exact string): ${JSON.stringify(KNOWN_GRINDERS)}
+BOOLEAN FIELDS — set true if mentioned/used, false if explicitly absent ("no melodrip", "didn't use", "skipped"):
+  melodrip: used Melodrip flow restrictor
+  doubleBloom: did a second bloom / double bloom
+  varyingPourSpeed: varied pour speed during the brew
+
+PERCEIVED EXTRACTION hints:
+  "under" / "underextracted" / "sour" / "sharp" → "Under"
+  "balanced" / "dialled in" / "on point" → "Balanced"
+  "over" / "overextracted" / "bitter" / "harsh" → "Over"
+
+Known brewing devices (fuzzy match → return exact string): ${JSON.stringify(KNOWN_DEVICES)}
+Known filters (fuzzy match → return exact string): ${JSON.stringify(KNOWN_FILTERS)}
+Known grinders (fuzzy match → return exact string): ${JSON.stringify(KNOWN_GRINDERS)}
 Known grind sizes (return exact string): ${JSON.stringify(GRIND_SIZES)}
 
-Return ONLY valid JSON — no markdown, no explanation:
+Return ONLY valid JSON — no markdown, no explanation. Omit any field not mentioned.
 {
   "brewMethod": "Pour Over" | "Espresso" | "Immersion" | "AeroPress" | "Zuppa Longa",
-  "brewingDevice": string from known devices or null,
-  "grinder": string from known grinders or null,
+  "brewingDevice": string,
+  "grinder": string,
   "grindSetting": string,
-  "grindSize": string from known grind sizes or null,
-  "filter": string from known filters or null,
+  "grindSize": string,
+  "filter": string,
   "brewerShape": "Cone" | "Flat",
   "bypass": "Standard" | "Low Bypass" | "No Bypass",
   "pourStyle": "Circular" | "Center" | "Hybrid",
   "coffeeDose": number (grams),
   "waterAmount": number (grams),
-  "waterTempF": number (convert Celsius → Fahrenheit if needed),
+  "waterTempF": number (convert °C → °F if needed),
   "waterPPM": number,
+  "waterRecipe": string,
   "brewRecipeName": string,
-  "acidity": number 1-10,
-  "sweetness": number 1-10,
-  "body": number 1-10,
-  "florality": number 1-10,
-  "clarity": number 1-10,
-  "juiciness": number 1-10,
-  "finish": number 1-10,
+  "quickScore": number 1-5,
+  "totalPours": number,
+  "bloomAmount": number (grams),
+  "bloomTime": number (minutes),
+  "totalBrewTime": number (minutes — convert from seconds if needed),
+  "melodrip": boolean,
+  "doubleBloom": boolean,
+  "varyingPourSpeed": boolean,
+  "espressoYield": number (grams),
+  "espressoBrewTime": number (seconds),
+  "espressoMaxPressure": number (bar),
+  "acidity": number 0-10,
+  "sweetness": number 0-10,
+  "body": number 0-10,
+  "florality": number 0-10,
+  "clarity": number 0-10,
+  "juiciness": number 0-10,
+  "finish": number 0-10,
   "astringency": number 0-10,
   "sourness": number 0-10,
-  "flavorNotes": string,
+  "flavorNotes": string (tasting descriptors exactly as spoken),
   "perceivedExtraction": "Under" | "Balanced" | "Over",
   "suggestedChange": string,
   "moreAcidity": boolean,
@@ -114,11 +154,10 @@ export async function parseVoiceWithClaude(
 ): Promise<VoiceBrewFields> {
   const body = {
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
+    max_tokens: 1536,
     messages: [{ role: 'user', content: PROMPT(transcript) }],
   };
 
-  // Build headers — include api key if provided (for local dev fallback path)
   const headers: Record<string, string> = {
     'content-type': 'application/json',
     'anthropic-version': '2023-06-01',
