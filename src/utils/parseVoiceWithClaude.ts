@@ -41,6 +41,12 @@ export interface VoiceBrewFields {
   bloomAmount?: number;
   bloomTime?: number;
   totalBrewTime?: number;
+  pourHeight?: 'Low' | 'Medium' | 'High';
+  pourSpeed?: 'Low' | 'Medium' | 'High' | 'Combination';
+  agitation?: 'Low' | 'Medium' | 'High';
+  pourSpeedMlS?: string;
+  pourSpeedMinMlS?: number;
+  pourSpeedMaxMlS?: number;
   melodrip?: boolean;
   doubleBloom?: boolean;
   varyingPourSpeed?: boolean;
@@ -118,6 +124,12 @@ Return ONLY valid JSON — no markdown, no explanation. Omit any field not menti
   "bloomAmount": number (grams),
   "bloomTime": number (minutes),
   "totalBrewTime": number (minutes — convert from seconds if needed),
+  "pourHeight": "Low" | "Medium" | "High",
+  "pourSpeed": "Low" | "Medium" | "High" | "Combination",
+  "agitation": "Low" | "Medium" | "High",
+  "pourSpeedMlS": one of "1–3" | "4–6" | "6–8" | "8–10" | "10+" | "Combination" (match from spoken ml/s range),
+  "pourSpeedMinMlS": number (ml/s, for Combination only),
+  "pourSpeedMaxMlS": number (ml/s, for Combination only),
   "melodrip": boolean,
   "doubleBloom": boolean,
   "varyingPourSpeed": boolean,

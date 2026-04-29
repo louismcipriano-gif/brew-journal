@@ -298,14 +298,20 @@ export default function BrewForm() {
       if (u.pourOverDetails || v.pourStyle || v.melodrip != null || v.doubleBloom != null
         || v.varyingPourSpeed != null || v.totalPours || v.bloomAmount || v.bloomTime || v.totalBrewTime) {
         const po = { ...(u.pourOverDetails ?? defaultPourOver) };
-        if (v.pourStyle)           po.pourStyle        = v.pourStyle;
-        if (v.melodrip      != null) po.melodrip        = v.melodrip;
-        if (v.doubleBloom   != null) po.doubleBloom     = v.doubleBloom;
-        if (v.varyingPourSpeed != null) po.varyingPourSpeed = v.varyingPourSpeed;
-        if (v.totalPours)          po.totalPours       = v.totalPours;
-        if (v.bloomAmount)         po.bloomAmount      = v.bloomAmount;
-        if (v.bloomTime)           po.bloomTime        = v.bloomTime;
-        if (v.totalBrewTime)       po.totalBrewTime    = v.totalBrewTime;
+        if (v.pourStyle)              po.pourStyle         = v.pourStyle;
+        if (v.pourHeight)             po.pourHeight        = v.pourHeight;
+        if (v.pourSpeed)              po.pourSpeed         = v.pourSpeed;
+        if (v.agitation)              po.agitation         = v.agitation;
+        if (v.pourSpeedMlS)           po.pourSpeedMlS      = v.pourSpeedMlS;
+        if (v.pourSpeedMinMlS)        po.pourSpeedMinMlS   = v.pourSpeedMinMlS;
+        if (v.pourSpeedMaxMlS)        po.pourSpeedMaxMlS   = v.pourSpeedMaxMlS;
+        if (v.melodrip        != null) po.melodrip          = v.melodrip;
+        if (v.doubleBloom     != null) po.doubleBloom       = v.doubleBloom;
+        if (v.varyingPourSpeed!= null) po.varyingPourSpeed  = v.varyingPourSpeed;
+        if (v.totalPours)             po.totalPours        = v.totalPours;
+        if (v.bloomAmount)            po.bloomAmount       = v.bloomAmount;
+        if (v.bloomTime)              po.bloomTime         = v.bloomTime;
+        if (v.totalBrewTime)          po.totalBrewTime     = v.totalBrewTime;
         u.pourOverDetails = po;
       }
 
