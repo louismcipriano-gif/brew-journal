@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Input, Select, Toggle, Slider, Chip, SectionTitle, ScoreRing, MicButton,
@@ -12,6 +12,8 @@ import type {
   Brew, BrewMethod, PourOverDetails, EspressoDetails, FlavorProfile,
   PourHeightSpeed, PerceivedExtraction, SavedRecipe,
 } from '../types';
+import { parseVoiceWithClaude } from '../utils/parseVoiceWithClaude';
+import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
 
 const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
@@ -122,56 +124,6 @@ function recipeToFormFields(r: SavedRecipe): Partial<BrewFormData> {
   };
 }
 
-interface ParsedVoice {
-  brewFields: Partial<BrewFormData>;
-  flavorNotes?: string;
-  suggestedChange?: string;
-  recognized: string[];
-}
-
-function parseVoiceToBrewFields(transcript: string): ParsedVoice {
-  const t = transcript.toLowerCase();
-  const brewFields: any = {};
-  const recognized: string[] = [];
-
-  // Coffee dose — "dose 15", "15 grams coffee", "15g dose"
-  const doseMatch = t.match(/(?:dose|coffee\s+dose)\s+(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*g(?:rams?)?\s+(?:of\s+)?(?:coffee|dose)/);
-  if (doseMatch) { brewFields.coffeeDose = parseFloat(doseMatch[1] ?? doseMatch[2]); recognized.push(`dose → ${brewFields.coffeeDose}g`); }
-
-  // Water — "water 240", "240 grams water"
-  const waterMatch = t.match(/water\s+(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*g(?:rams?)?\s+(?:of\s+)?water/);
-  if (waterMatch) { brewFields.waterAmount = parseFloat(waterMatch[1] ?? waterMatch[2]); recognized.push(`water → ${brewFields.waterAmount}g`); }
-
-  // Temperature — "205 degrees", "203 fahrenheit", "temp 200"
-  const tempMatch = t.match(/(?:temp(?:erature)?\s+(\d{2,3})|(\d{2,3})\s*(?:degrees?(?:\s*f(?:ahrenheit)?)?|°f))/i);
-  if (tempMatch) { brewFields.waterTempF = parseInt(tempMatch[1] ?? tempMatch[2]); recognized.push(`temp → ${brewFields.waterTempF}°F`); }
-
-  // Grind — "grind 28", "grind setting 3.5"
-  const grindMatch = t.match(/grind(?:\s+setting)?\s+(?:at\s+|is\s+|of\s+)?(\S+)/i);
-  if (grindMatch) { brewFields.grindSetting = grindMatch[1].replace(/[.,]$/, ''); recognized.push(`grind → ${brewFields.grindSetting}`); }
-
-  // Water PPM — "75 ppm", "ppm 100"
-  const ppmMatch = t.match(/(?:ppm\s+(\d+)|(\d+)\s*ppm)/i);
-  if (ppmMatch) { brewFields.waterPPM = parseInt(ppmMatch[1] ?? ppmMatch[2]); recognized.push(`ppm → ${brewFields.waterPPM}`); }
-
-  // Brew method
-  if (/pour\s*over/i.test(t)) { brewFields.brewMethod = 'Pour Over'; recognized.push('method → Pour Over'); }
-  else if (/\bespresso\b/i.test(t)) { brewFields.brewMethod = 'Espresso'; recognized.push('method → Espresso'); }
-  else if (/\bimmersion\b/i.test(t)) { brewFields.brewMethod = 'Immersion'; recognized.push('method → Immersion'); }
-  else if (/aeropress/i.test(t)) { brewFields.brewMethod = 'AeroPress'; recognized.push('method → AeroPress'); }
-
-  // Flavor / tasting notes — only if explicitly prefixed
-  const notesMatch = transcript.match(/(?:flavor|tasting|taste)\s+notes?\s*[:\-]?\s*(.+)/i);
-  const flavorNotes = notesMatch ? notesMatch[1].trim() : undefined;
-  if (flavorNotes) recognized.push(`notes → "${flavorNotes}"`);
-
-  // Suggested change — "suggested change grind finer"
-  const changeMatch = transcript.match(/suggested?\s+change\s*[:\-]?\s*(.+)/i);
-  const suggestedChange = changeMatch ? changeMatch[1].trim() : undefined;
-  if (suggestedChange) recognized.push(`change → "${suggestedChange}"`);
-
-  return { brewFields, flavorNotes, suggestedChange, recognized };
-}
 
 export default function BrewForm() {
   const navigate = useNavigate();
@@ -242,7 +194,10 @@ export default function BrewForm() {
 
   // Voice fill state
   const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceParsing, setVoiceParsing] = useState(false);
+  const [voiceInterim, setVoiceInterim] = useState('');
   const voiceRecRef = useRef<any>(null);
+  const voiceTranscriptRef = useRef('');
 
   useEffect(() => {
     if (form.brewMethod === 'Pour Over') {
@@ -303,36 +258,134 @@ export default function BrewForm() {
     }));
   }
 
-  function handleVoiceFill() {
+  function applyVoiceFields(v: VoiceBrewFields) {
+    setForm((f) => {
+      let u = { ...f };
+
+      // Brew method
+      if (v.brewMethod) u.brewMethod = v.brewMethod as BrewMethod;
+
+      // Brewing device — auto-populate filter, shape, bypass
+      if (v.brewingDevice) {
+        const dev = v.brewingDevice;
+        const resolvedFilter = v.filter ?? FILTER_PRESELECT[dev] ?? f.filter ?? '';
+        u.brewingDevice = dev;
+        if (v.filter) u.filter = v.filter;
+        else if (FILTER_PRESELECT[dev]) u.filter = FILTER_PRESELECT[dev];
+        if (!v.brewerShape && DEVICE_SHAPE[dev]) u.brewerShape = DEVICE_SHAPE[dev];
+        if (!v.bypass) u.bypass = resolveBypass(dev, resolvedFilter) ?? f.bypass;
+      } else if (v.filter) {
+        u.filter = v.filter;
+        if (!v.bypass) u.bypass = resolveBypass(f.brewingDevice, v.filter) ?? f.bypass;
+      }
+      if (v.brewerShape) u.brewerShape = v.brewerShape;
+      if (v.bypass) u.bypass = v.bypass;
+
+      // Grinder / grind
+      if (v.grinder) u.grinder = v.grinder;
+      if (v.grindSetting) u.grindSetting = v.grindSetting;
+      if (v.grindSize) u.grindSize = v.grindSize;
+
+      // Recipe parameters
+      if (v.coffeeDose) u.coffeeDose = v.coffeeDose;
+      if (v.waterAmount) u.waterAmount = v.waterAmount;
+      if (v.waterTempF) u.waterTempF = v.waterTempF;
+      if (v.waterPPM != null) u.waterPPM = v.waterPPM;
+      if (v.brewRecipeName) u.brewRecipeName = v.brewRecipeName;
+
+      // Pour over details
+      if (v.pourStyle) {
+        u.pourOverDetails = { ...(u.pourOverDetails ?? defaultPourOver), pourStyle: v.pourStyle };
+      }
+
+      // Flavor profile
+      const fp = { ...f.flavorProfile };
+      const clamp = (n: number, lo = 0, hi = 10) => Math.min(hi, Math.max(lo, n));
+      if (v.acidity     != null) fp.acidity     = clamp(v.acidity);
+      if (v.sweetness   != null) fp.sweetness   = clamp(v.sweetness);
+      if (v.body        != null) fp.body        = clamp(v.body);
+      if (v.florality   != null) fp.florality   = clamp(v.florality);
+      if (v.clarity     != null) fp.clarity     = clamp(v.clarity);
+      if (v.juiciness   != null) fp.juiciness   = clamp(v.juiciness);
+      if (v.finish      != null) fp.finish      = clamp(v.finish);
+      if (v.astringency != null) fp.astringency = clamp(v.astringency);
+      if (v.sourness    != null) fp.sourness    = clamp(v.sourness);
+      if (v.flavorNotes)         fp.flavorNotes = v.flavorNotes;
+      if (v.perceivedExtraction) fp.perceivedExtraction = v.perceivedExtraction;
+      if (v.suggestedChange)     fp.suggestedChange = v.suggestedChange;
+      if (v.moreAcidity    != null) fp.moreAcidity    = v.moreAcidity;
+      if (v.moreSweetness  != null) fp.moreSweetness  = v.moreSweetness;
+      if (v.moreClarity    != null) fp.moreClarity    = v.moreClarity;
+      if (v.moreFlorality  != null) fp.moreFlorality  = v.moreFlorality;
+      if (v.moreBody       != null) fp.moreBody       = v.moreBody;
+      if (v.lessBitterness != null) fp.lessBitterness = v.lessBitterness;
+      if (v.lessAstringency!= null) fp.lessAstringency= v.lessAstringency;
+      if (v.lessSourness   != null) fp.lessSourness   = v.lessSourness;
+      u.flavorProfile = fp;
+
+      return u;
+    });
+
+    // Auto-expand to show filled flavor profile
+    const hasFlavor = v.acidity != null || v.sweetness != null || v.body != null
+      || v.flavorNotes || v.perceivedExtraction || v.suggestedChange;
+    if (hasFlavor) setShowAdvanced(true);
+  }
+
+  async function handleVoiceFill() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert('Speech recognition not supported. Try Chrome or Safari.'); return; }
-    if (voiceListening) { voiceRecRef.current?.stop?.(); setVoiceListening(false); return; }
+    if (!SR) {
+      alert('Speech recognition not supported in this browser.\nUse Chrome on desktop or iOS Safari.');
+      return;
+    }
+
+    // Tap while listening → stop, which fires onend → parse
+    if (voiceListening) {
+      voiceRecRef.current?.stop?.();
+      return;
+    }
 
     const rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = false;
+    rec.continuous = true;       // keep going until user taps stop
+    rec.interimResults = true;   // live preview while speaking
     rec.lang = 'en-US';
+    voiceTranscriptRef.current = '';
+
     rec.onresult = (e: any) => {
-      const transcript: string = e.results[0][0].transcript;
-      const { brewFields, flavorNotes, suggestedChange, recognized } = parseVoiceToBrewFields(transcript);
-      setForm((f) => ({
-        ...f,
-        ...brewFields,
-        flavorProfile: {
-          ...f.flavorProfile,
-          ...(flavorNotes && { flavorNotes: f.flavorProfile.flavorNotes ? `${f.flavorProfile.flavorNotes} ${flavorNotes}` : flavorNotes }),
-          ...(suggestedChange && { suggestedChange }),
-        },
-      }));
-      if (recognized.length === 0) {
-        alert(`Heard: "${transcript}"\n\nNothing recognized. Try saying:\n• "dose 15"\n• "water 240"\n• "temp 205 degrees"\n• "grind 28"\n• "flavor notes blueberry chocolate"`);
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) voiceTranscriptRef.current += t + ' ';
+        else interim = t;
       }
-      setVoiceListening(false);
+      setVoiceInterim(voiceTranscriptRef.current + interim);
     };
-    rec.onerror = (e: any) => { setVoiceListening(false); if (e.error !== 'aborted') alert(`Mic error: ${e.error}`); };
-    rec.onend = () => setVoiceListening(false);
-    // store ref
-    (voiceRecRef as any).current = rec;
+
+    rec.onend = async () => {
+      setVoiceListening(false);
+      setVoiceInterim('');
+      const transcript = voiceTranscriptRef.current.trim();
+      if (!transcript) return;
+
+      setVoiceParsing(true);
+      try {
+        const fields = await parseVoiceWithClaude(transcript);
+        applyVoiceFields(fields);
+      } catch (err: any) {
+        alert(`Voice parse failed: ${err.message || 'Check your connection and try again.'}`);
+      } finally {
+        setVoiceParsing(false);
+      }
+    };
+
+    rec.onerror = (e: any) => {
+      setVoiceListening(false);
+      setVoiceInterim('');
+      if (e.error === 'no-speech') return;
+      if (e.error !== 'aborted') alert(`Microphone error: ${e.error}`);
+    };
+
+    voiceRecRef.current = rec;
     rec.start();
     setVoiceListening(true);
   }
@@ -386,19 +439,36 @@ export default function BrewForm() {
         <h1 className="font-display italic text-brew-text text-2xl leading-tight">
           {isEdit ? 'Edit Brew' : 'Log a Brew'}
         </h1>
-        <button
-          type="button"
-          onClick={handleVoiceFill}
-          title={voiceListening ? 'Stop listening' : 'Voice fill brew parameters'}
-          className={`ml-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            voiceListening
-              ? 'bg-brew-negative/15 text-brew-negative border-brew-negative/40 animate-pulse'
-              : 'bg-brew-surface text-brew-muted border-brew-border hover:text-brew-primary hover:border-brew-primary'
-          }`}
-        >
-          {voiceListening ? <MicOff size={13} /> : <Mic size={13} />}
-          {voiceListening ? 'Listening…' : 'Voice Fill'}
-        </button>
+        <div className="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleVoiceFill}
+            disabled={voiceParsing}
+            title={voiceListening ? 'Tap to stop and parse' : 'Speak your brew — everything fills automatically'}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              voiceListening
+                ? 'bg-brew-negative/15 text-brew-negative border-brew-negative/40 animate-pulse'
+                : voiceParsing
+                ? 'bg-brew-surface text-brew-muted border-brew-border cursor-default'
+                : 'bg-brew-surface text-brew-muted border-brew-border hover:text-brew-primary hover:border-brew-primary'
+            }`}
+          >
+            {voiceParsing
+              ? <><Loader2 size={13} className="animate-spin" /> Parsing…</>
+              : voiceListening
+              ? <><MicOff size={13} /> Stop &amp; Parse</>
+              : <><Mic size={13} /> Voice Fill</>
+            }
+          </button>
+          {voiceListening && voiceInterim && (
+            <p className="text-xs text-brew-faint max-w-[220px] text-right leading-snug italic">
+              "{voiceInterim}"
+            </p>
+          )}
+          {!voiceListening && !voiceParsing && (
+            <p className="text-xs text-brew-faint">Speak your full brew — tap again to stop</p>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full max-w-3xl">
