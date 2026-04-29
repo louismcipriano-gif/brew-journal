@@ -15,6 +15,8 @@ import type {
 
 const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
+const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
+const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
 const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 
@@ -697,7 +699,7 @@ export default function BrewForm() {
                 label="Pour Speed"
                 value={form.pourOverDetails.pourSpeed}
                 onChange={(e) => setPO('pourSpeed', e.target.value as PourHeightSpeed)}
-                options={HEIGHT_SPEED.map((s) => ({ value: s, label: s }))}
+                options={POUR_SPEEDS.map((s) => ({ value: s, label: s }))}
               />
               <Select
                 label="Agitation"
@@ -705,8 +707,47 @@ export default function BrewForm() {
                 onChange={(e) => setPO('agitation', e.target.value as PourHeightSpeed)}
                 options={HEIGHT_SPEED.map((s) => ({ value: s, label: s }))}
               />
+              <Select
+                label="Pour Speed ml/s"
+                value={form.pourOverDetails.pourSpeedMlS ?? ''}
+                onChange={(e) => setPO('pourSpeedMlS', e.target.value || undefined)}
+                placeholder="— Select range —"
+                options={POUR_SPEED_MLS.map((s) => ({ value: s, label: s }))}
+              />
             </div>
+
+            {/* Combination min/max fields */}
+            {form.pourOverDetails.pourSpeedMlS === 'Combination' && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-brew-surface rounded-lg border border-brew-border">
+                <Input
+                  label="Min Pour Speed"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={form.pourOverDetails.pourSpeedMinMlS ?? ''}
+                  onChange={(e) => setPO('pourSpeedMinMlS', parseFloat(e.target.value) || undefined)}
+                  suffix="ml/s"
+                  placeholder="e.g. 2"
+                />
+                <Input
+                  label="Max Pour Speed"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={form.pourOverDetails.pourSpeedMaxMlS ?? ''}
+                  onChange={(e) => setPO('pourSpeedMaxMlS', parseFloat(e.target.value) || undefined)}
+                  suffix="ml/s"
+                  placeholder="e.g. 8"
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-3 pt-2">
+              <Toggle
+                label="Varying Pour Speed"
+                checked={!!form.pourOverDetails.varyingPourSpeed}
+                onChange={(v) => setPO('varyingPourSpeed', v)}
+              />
               <Toggle
                 label="Double Bloom"
                 checked={form.pourOverDetails.doubleBloom}

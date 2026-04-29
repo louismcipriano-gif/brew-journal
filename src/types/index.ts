@@ -21,7 +21,7 @@ export type BrewMethod =
   | 'AeroPress'
   | 'Zuppa Longa';
 
-export type PourHeightSpeed = 'Low' | 'Medium' | 'High';
+export type PourHeightSpeed = 'Low' | 'Medium' | 'High' | 'Combination';
 
 export type PerceivedExtraction = 'Under' | 'Balanced' | 'Over';
 
@@ -57,6 +57,10 @@ export interface PourOverDetails {
   agitation: PourHeightSpeed;
   bloomTime: number;
   totalBrewTime: number;
+  pourSpeedMlS?: string;
+  pourSpeedMaxMlS?: number;
+  pourSpeedMinMlS?: number;
+  varyingPourSpeed?: boolean;
 }
 
 export interface EspressoDetails {
