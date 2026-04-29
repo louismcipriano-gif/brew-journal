@@ -55,6 +55,32 @@ const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'f
   'April Brewer': 'Standard', 'Hario Mugen': 'Low Bypass', 'Hario Cloth': 'Standard',
   'Torch Mountain': 'Standard', 'Orea V3': 'filter-dependent',
 };
+// Grind setting → grind size auto-resolve per grinder
+const GRIND_SIZE_RANGES: Record<string, { max: number; size: string }[]> = {
+  'Timemore Sculptor 078': [
+    { max: 1.9,  size: 'Coarse Espresso' },
+    { max: 3.5,  size: 'Fine / Mokka'    },
+    { max: 7.5,  size: 'Medium Fine'     },
+    { max: 9.5,  size: 'Medium'          },
+    { max: 12.5, size: 'Medium Coarse'   },
+    { max: Infinity, size: 'Coarse'      },
+  ],
+  'Comandante C40': [
+    { max: 7,    size: 'Coarse Espresso' },
+    { max: 16,   size: 'Fine / Mokka'    },
+    { max: 22,   size: 'Medium Fine'     },
+    { max: 25,   size: 'Medium'          },
+    { max: 28,   size: 'Medium Coarse'   },
+    { max: Infinity, size: 'Coarse'      },
+  ],
+};
+function resolveGrindSize(grinder: string, setting: number): string | undefined {
+  if (!setting || setting <= 0) return undefined;
+  const ranges = GRIND_SIZE_RANGES[grinder];
+  if (!ranges) return undefined;
+  return ranges.find((r) => setting <= r.max)?.size;
+}
+
 function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass' | 'No Bypass' | undefined {
   const val = DEVICE_BYPASS[device];
   if (!val) return undefined;
@@ -307,7 +333,12 @@ export default function BrewForm() {
       // Grinder / grind
       if (v.grinder) u.grinder = v.grinder;
       if (v.grindSetting != null) u.grindSetting = v.grindSetting;
-      if (v.grindSize) u.grindSize = v.grindSize;
+      // Auto-resolve grind size from grinder + setting; explicit voice override wins
+      if (v.grindSize) {
+        u.grindSize = v.grindSize;
+      } else if (v.grinder || v.grindSetting != null) {
+        u.grindSize = resolveGrindSize(u.grinder, u.grindSetting) ?? u.grindSize;
+      }
 
       // Recipe parameters
       if (v.coffeeDose) u.coffeeDose = v.coffeeDose;
@@ -633,11 +664,17 @@ export default function BrewForm() {
               <Select
                 label="Grinder"
                 value={form.grinder}
-                onChange={(e) => set('grinder', e.target.value)}
+                onChange={(e) => {
+                  const g = e.target.value;
+                  setForm((f) => ({ ...f, grinder: g, grindSize: resolveGrindSize(g, f.grindSetting) ?? f.grindSize }));
+                }}
                 placeholder="— Select grinder —"
                 options={GRINDERS.map((g) => ({ value: g, label: g }))}
               />
-              <Input label="Grind Setting" type="number" min={0} step={0.5} value={form.grindSetting || ''} onChange={(e) => set('grindSetting', parseFloat(e.target.value) || 0)} hint="Clicks / steps / dial position" />
+              <Input label="Grind Setting" type="number" min={0} step={0.5} value={form.grindSetting || ''} onChange={(e) => {
+                  const s = parseFloat(e.target.value) || 0;
+                  setForm((f) => ({ ...f, grindSetting: s, grindSize: resolveGrindSize(f.grinder, s) ?? f.grindSize }));
+                }} hint="Clicks / steps / dial position" />
               <Input label="Coffee Dose" type="number" min={0} step={0.1} value={form.coffeeDose || ''} onChange={(e) => set('coffeeDose', parseFloat(e.target.value) || 0)} suffix="g" />
               <Input label="Water Amount" type="number" min={0} step={1} value={form.waterAmount || ''} onChange={(e) => set('waterAmount', parseFloat(e.target.value) || 0)} suffix="g" />
               <Input label="Water Temp" type="number" min={150} max={212} value={form.waterTempF || ''} onChange={(e) => set('waterTempF', parseFloat(e.target.value) || 0)} suffix="°F" />
@@ -718,7 +755,10 @@ export default function BrewForm() {
             <Select
               label="Grinder"
               value={form.grinder}
-              onChange={(e) => set('grinder', e.target.value)}
+              onChange={(e) => {
+                const g = e.target.value;
+                setForm((f) => ({ ...f, grinder: g, grindSize: resolveGrindSize(g, f.grindSetting) ?? f.grindSize }));
+              }}
               placeholder="— Select grinder —"
               options={GRINDERS.map((g) => ({ value: g, label: g }))}
             />
@@ -728,7 +768,10 @@ export default function BrewForm() {
               min={0}
               step={0.5}
               value={form.grindSetting || ''}
-              onChange={(e) => set('grindSetting', parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                const s = parseFloat(e.target.value) || 0;
+                setForm((f) => ({ ...f, grindSetting: s, grindSize: resolveGrindSize(f.grinder, s) ?? f.grindSize }));
+              }}
               hint="Clicks / steps / dial position"
             />
             <Select
