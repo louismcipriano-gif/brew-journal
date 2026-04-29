@@ -287,18 +287,24 @@ export function EmptyState({ icon, title, description, action }: {
 export function MicButton({ onResult, className = '' }: { onResult: (t: string) => void; className?: string }) {
   const [listening, setListening] = useState(false);
   const recRef = useRef<any>(null);
+  const accRef = useRef('');
 
   function toggle() {
-    if (listening) { recRef.current?.stop(); setListening(false); return; }
+    if (listening) { recRef.current?.stop(); return; }
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition not supported. Try Chrome or Safari.'); return; }
     const rec = new SR();
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = false;
     rec.lang = 'en-US';
-    rec.onresult = (e: any) => { onResult(e.results[0][0].transcript); setListening(false); };
+    accRef.current = '';
+    rec.onresult = (e: any) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) accRef.current += e.results[i][0].transcript + ' ';
+      }
+    };
     rec.onerror = (e: any) => { setListening(false); if (e.error !== 'aborted') alert(`Mic error: ${e.error}`); };
-    rec.onend = () => setListening(false);
+    rec.onend = () => { setListening(false); if (accRef.current.trim()) onResult(accRef.current.trim()); };
     recRef.current = rec;
     rec.start();
     setListening(true);

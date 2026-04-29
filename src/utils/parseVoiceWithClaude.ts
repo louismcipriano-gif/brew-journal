@@ -36,6 +36,11 @@ export interface VoiceBrewFields {
   waterRecipe?: string;
   brewRecipeName?: string;
   quickScore?: number;
+  brewRecipeDetails?: string;
+  // Measurements
+  finalBrewWeight?: number;
+  tds?: number;
+  extractionYield?: number;
   // Pour over details
   totalPours?: number;
   bloomAmount?: number;
@@ -120,6 +125,10 @@ Return ONLY valid JSON — no markdown, no explanation. Omit any field not menti
   "waterRecipe": string,
   "brewRecipeName": string,
   "quickScore": number 1-5,
+  "brewRecipeDetails": string (step-by-step pour instructions, timing, or any technique notes spoken),
+  "finalBrewWeight": number (grams — total liquid in cup),
+  "tds": number (TDS percentage, e.g. 1.35),
+  "extractionYield": number (extraction yield %, e.g. 21.5),
   "totalPours": number,
   "bloomAmount": number (grams),
   "bloomTime": number (minutes),

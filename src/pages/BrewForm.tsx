@@ -324,9 +324,13 @@ export default function BrewForm() {
         u.espressoDetails = esp;
       }
 
-      // Water recipe & quick score
-      if (v.waterRecipe) u.waterRecipe = v.waterRecipe;
-      if (v.quickScore)  u.quickScore  = v.quickScore;
+      // Water recipe, quick score, recipe details & measurements
+      if (v.waterRecipe)       u.waterRecipe       = v.waterRecipe;
+      if (v.quickScore)        u.quickScore        = v.quickScore;
+      if (v.brewRecipeDetails) u.brewRecipeDetails = v.brewRecipeDetails;
+      if (v.finalBrewWeight != null) u.finalBrewWeight = v.finalBrewWeight;
+      if (v.tds             != null) u.tds             = v.tds;
+      if (v.extractionYield != null) u.extractionYield = v.extractionYield;
 
       // Flavor profile
       const fp = { ...f.flavorProfile };
