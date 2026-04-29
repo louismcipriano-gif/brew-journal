@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, ArrowLeft, Trash2, Edit2, BookMarked, Zap } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Edit2, BookMarked, Zap, Copy } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Badge, Input, Select, Toggle, EmptyState, SectionTitle, MicButton,
@@ -689,7 +689,7 @@ export function RecipeForm() {
 export function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getRecipe, deleteRecipe, data } = useApp();
+  const { getRecipe, deleteRecipe, addRecipe, data } = useApp();
 
   const recipe = getRecipe(id!);
   if (!recipe) {
@@ -712,6 +712,12 @@ export function RecipeDetail() {
     }
   }
 
+  function handleDuplicate() {
+    const { id: _id, createdAt: _ca, ...rest } = recipe!;
+    const copy = addRecipe({ ...rest, name: `Copy of ${rest.name}` });
+    navigate(`/recipes/${copy.id}/edit`);
+  }
+
   return (
     <div className="flex flex-col gap-8">
       {/* Header */}
@@ -720,6 +726,9 @@ export function RecipeDetail() {
           <ArrowLeft size={14} /> Back
         </Button>
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={handleDuplicate}>
+            <Copy size={14} /> Duplicate
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/recipes/${id}/edit`)}>
             <Edit2 size={14} /> Edit
           </Button>
