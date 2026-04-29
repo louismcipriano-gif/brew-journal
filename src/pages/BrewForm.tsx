@@ -139,6 +139,7 @@ function recipeToFormFields(r: SavedRecipe): Partial<BrewFormData> {
     filter: r.filter ?? '',
     brewerShape: r.brewerShape,
     bypass: r.bypass,
+    grindSize: r.grindSize ?? '',
     coffeeDose: r.coffeeDose,
     waterAmount: r.waterAmount,
     waterTempF: r.waterTempF,
