@@ -147,19 +147,19 @@ export default function BrewForm() {
     // Edit mode: pre-fill from existing brew
     if (existingBrew) {
       const { id: _id, createdAt: _ca, ...rest } = existingBrew;
-      return rest as BrewFormData;
+      return { ...rest, grindSetting: Number(rest.grindSetting) || 0 } as BrewFormData;
     }
     // Brew Again: clone params from another brew
     if (cloneBrew) {
       const { id: _id, createdAt: _ca, quickScore: _qs, isQuickLog: _ql, flavorProfile: _fp, ...params } = cloneBrew;
-      return { ...params, brewDate: new Date().toISOString().split('T')[0], flavorProfile: defaultFlavorProfile, quickScore: undefined, isQuickLog: false } as BrewFormData;
+      return { ...params, grindSetting: Number(params.grindSetting) || 0, brewDate: new Date().toISOString().split('T')[0], flavorProfile: defaultFlavorProfile, quickScore: undefined, isQuickLog: false } as BrewFormData;
     }
     const base: BrewFormData = {
       coffeeId: preselectedCoffeeId,
       brewDate: new Date().toISOString().split('T')[0],
       brewMethod: 'Pour Over',
       grinder: 'Timemore Sculptor 078',
-      grindSetting: '',
+      grindSetting: 0,
       grindSize: '',
       brewingDevice: '',
       filter: '',
@@ -284,7 +284,7 @@ export default function BrewForm() {
 
       // Grinder / grind
       if (v.grinder) u.grinder = v.grinder;
-      if (v.grindSetting) u.grindSetting = v.grindSetting;
+      if (v.grindSetting != null) u.grindSetting = v.grindSetting;
       if (v.grindSize) u.grindSize = v.grindSize;
 
       // Recipe parameters
@@ -427,7 +427,8 @@ export default function BrewForm() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.coffeeId) return alert('Please select a coffee.');
-    const payload = { ...form, isQuickLog: !showAdvanced };
+    const brewScore = calcBrewScore(form.flavorProfile);
+    const payload = { ...form, isQuickLog: !showAdvanced, brewScore };
     if (isEdit && editId) {
       updateBrew(editId, payload);
       navigate(`/brews/${editId}`);
@@ -607,7 +608,7 @@ export default function BrewForm() {
                 placeholder="— Select grinder —"
                 options={GRINDERS.map((g) => ({ value: g, label: g }))}
               />
-              <Input label="Grind Setting" value={form.grindSetting} onChange={(e) => set('grindSetting', e.target.value)} placeholder="e.g. 3.5, 28 clicks" />
+              <Input label="Grind Setting" type="number" min={0} step={0.5} value={form.grindSetting || ''} onChange={(e) => set('grindSetting', parseFloat(e.target.value) || 0)} hint="Clicks / steps / dial position" />
               <Input label="Coffee Dose" type="number" min={0} step={0.1} value={form.coffeeDose || ''} onChange={(e) => set('coffeeDose', parseFloat(e.target.value) || 0)} suffix="g" />
               <Input label="Water Amount" type="number" min={0} step={1} value={form.waterAmount || ''} onChange={(e) => set('waterAmount', parseFloat(e.target.value) || 0)} suffix="g" />
               <Input label="Water Temp" type="number" min={150} max={212} value={form.waterTempF || ''} onChange={(e) => set('waterTempF', parseFloat(e.target.value) || 0)} suffix="°F" />
@@ -694,9 +695,12 @@ export default function BrewForm() {
             />
             <Input
               label="Grind Setting"
-              value={form.grindSetting}
-              onChange={(e) => set('grindSetting', e.target.value)}
-              placeholder="e.g. 3.5, 28 clicks"
+              type="number"
+              min={0}
+              step={0.5}
+              value={form.grindSetting || ''}
+              onChange={(e) => set('grindSetting', parseFloat(e.target.value) || 0)}
+              hint="Clicks / steps / dial position"
             />
             <Select
               label="Grind Size"

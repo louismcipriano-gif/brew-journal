@@ -22,7 +22,7 @@ export interface VoiceBrewFields {
   brewMethod?: string;
   brewingDevice?: string;
   grinder?: string;
-  grindSetting?: string;
+  grindSetting?: number;
   grindSize?: string;
   filter?: string;
   brewerShape?: 'Cone' | 'Flat';
@@ -112,7 +112,7 @@ Return ONLY valid JSON — no markdown, no explanation. Omit any field not menti
   "brewMethod": "Pour Over" | "Espresso" | "Immersion" | "AeroPress" | "Zuppa Longa",
   "brewingDevice": string,
   "grinder": string,
-  "grindSetting": string,
+  "grindSetting": number (numeric value only — clicks, steps, or dial position; no units),
   "grindSize": string,
   "filter": string,
   "brewerShape": "Cone" | "Flat",

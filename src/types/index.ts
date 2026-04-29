@@ -112,7 +112,7 @@ export interface Brew {
   brewDate: string;
   brewMethod: BrewMethod;
   grinder: string;
-  grindSetting: string;
+  grindSetting: number;
   grindSize?: string;
   brewingDevice: string;
   filter?: string;
@@ -135,6 +135,7 @@ export interface Brew {
   tds?: number;
   extractionYield?: number;
   flavorProfile: FlavorProfile;
+  brewScore?: number;
   isGoToRecipe: boolean;
   createdAt: string;
 }
