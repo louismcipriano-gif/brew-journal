@@ -14,6 +14,7 @@ import type {
 } from '../types';
 import { parseVoiceWithClaude } from '../utils/parseVoiceWithClaude';
 import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
+import { getApiKey } from './Settings';
 
 const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
@@ -369,7 +370,7 @@ export default function BrewForm() {
 
       setVoiceParsing(true);
       try {
-        const fields = await parseVoiceWithClaude(transcript);
+        const fields = await parseVoiceWithClaude(transcript, getApiKey() ?? undefined);
         applyVoiceFields(fields);
       } catch (err: any) {
         alert(`Voice parse failed: ${err.message || 'Check your connection and try again.'}`);
