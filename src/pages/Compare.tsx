@@ -11,8 +11,78 @@ import {
 import { useApp } from '../context/AppContext';
 import { Card, SectionTitle, ScoreRing, Button, Slider } from '../components/ui';
 import { calcBrewScore, daysOffRoast, formatDate, brewRatio, fToC } from '../utils';
-import type { Brew, FlavorProfile, PerceivedExtraction } from '../types';
+import type {
+  Brew, FlavorProfile, PerceivedExtraction, BrewMethod,
+  PourOverDetails, EspressoDetails, PourHeightSpeed,
+} from '../types';
 import { getApiKey } from './Settings';
+
+// ── Constants (mirrors BrewForm) ───────────────────────────────────────────────
+
+const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
+const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
+const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
+const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
+const POUR_STYLES = ['Circular', 'Center', 'Hybrid'] as const;
+const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
+const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
+const BREWING_DEVICES = [
+  'V60', 'Orea 01', 'Orea Z1', 'V60 Switch', 'Mugen Switch',
+  'Cafec Flower', 'Kalita Wave', 'Origami Cone', 'Origami Flat',
+  'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
+  'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
+  'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot',
+];
+const FILTERS = [
+  'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
+  'Orea Flat', 'Origami Wave', 'Kalita Wave', 'April Wave', 'Kono', 'Melodrip Column',
+];
+const FILTER_PRESELECT: Record<string, string> = {
+  'Orea Z1': 'Sibarist Z1',
+  'Melodrip Column': 'Melodrip Column',
+  'Cafec Deep 27': 'Deep 27',
+};
+const DEVICE_SHAPE: Record<string, 'Cone' | 'Flat'> = {
+  'V60': 'Cone', 'Orea 01': 'Flat', 'Orea Z1': 'Flat',
+  'V60 Switch': 'Cone', 'Mugen Switch': 'Cone', 'Cafec Flower': 'Cone',
+  'Kalita Wave': 'Flat', 'Origami Cone': 'Cone', 'Origami Flat': 'Flat',
+  'Cafec Deep 27': 'Cone', 'Melodrip Column': 'Cone', 'Kono': 'Cone',
+  'April Brewer': 'Flat', 'Hario Mugen': 'Cone', 'Hario Cloth': 'Cone',
+  'Torch Mountain': 'Flat', 'Orea V3': 'Flat',
+};
+const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'filter-dependent'> = {
+  'V60': 'Standard', 'Orea 01': 'filter-dependent', 'Orea Z1': 'No Bypass',
+  'V60 Switch': 'Standard', 'Mugen Switch': 'Low Bypass', 'Cafec Flower': 'Standard',
+  'Kalita Wave': 'Standard', 'Origami Cone': 'Standard', 'Origami Flat': 'Standard',
+  'Cafec Deep 27': 'Standard', 'Melodrip Column': 'No Bypass', 'Kono': 'Low Bypass',
+  'April Brewer': 'Standard', 'Hario Mugen': 'Low Bypass', 'Hario Cloth': 'Standard',
+  'Torch Mountain': 'Standard', 'Orea V3': 'filter-dependent',
+};
+const GRIND_SIZE_RANGES: Record<string, { max: number; size: string }[]> = {
+  'Timemore Sculptor 078': [
+    { max: 1.9, size: 'Coarse Espresso' }, { max: 3.5, size: 'Fine / Mokka' },
+    { max: 7.5, size: 'Medium Fine' }, { max: 9.5, size: 'Medium' },
+    { max: 12.5, size: 'Medium Coarse' }, { max: Infinity, size: 'Coarse' },
+  ],
+  'Comandante C40': [
+    { max: 7, size: 'Coarse Espresso' }, { max: 16, size: 'Fine / Mokka' },
+    { max: 22, size: 'Medium Fine' }, { max: 25, size: 'Medium' },
+    { max: 28, size: 'Medium Coarse' }, { max: Infinity, size: 'Coarse' },
+  ],
+};
+
+function resolveGrindSize(grinder: string, setting: number): string | undefined {
+  if (!setting || setting <= 0) return undefined;
+  const ranges = GRIND_SIZE_RANGES[grinder];
+  if (!ranges) return undefined;
+  return ranges.find((r) => setting <= r.max)?.size;
+}
+function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass' | 'No Bypass' | undefined {
+  const val = DEVICE_BYPASS[device];
+  if (!val) return undefined;
+  if (val === 'filter-dependent') return filter === 'Orea Flat' ? 'Low Bypass' : 'Standard';
+  return val;
+}
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -42,21 +112,49 @@ const defaultFP = (): FlavorProfile => ({
   lessAstringency: false, lessSourness: false, suggestedChange: '',
 });
 
+const defaultPourOver = (): PourOverDetails => ({
+  totalPours: 4, bloomAmount: 0, doubleBloom: false, melodrip: false,
+  pourHeight: 'Medium', pourSpeed: 'Medium', pourStyle: 'Circular',
+  agitation: 'Low', bloomTime: 0.5, totalBrewTime: 3, pourSpeedMlS: '',
+  pourSpeedMaxMlS: undefined, pourSpeedMinMlS: undefined, varyingPourSpeed: false,
+});
+
+const defaultEspresso = (): EspressoDetails => ({
+  totalYield: 36, brewTime: 28, maxPressure: 9,
+});
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface CuppingSlot {
+interface SideBySideSlot {
+  // identity
   coffeeId: string;
-  brewMethod: string;
+  brewDate: string;
+  brewMethod: BrewMethod;
+  // setup
   brewingDevice: string;
+  filter: string;
+  brewerShape?: 'Cone' | 'Flat';
+  bypass?: 'Standard' | 'Low Bypass' | 'No Bypass';
+  grinder: string;
   grindSetting: number;
   grindSize: string;
+  // parameters
   coffeeDose: number;
   waterAmount: number;
   waterTempF: number;
   waterPPM: number;
+  waterRecipe: string;
+  // details
+  pourOverDetails: PourOverDetails;
+  espressoDetails: EspressoDetails;
+  finalBrewWeight?: number;
+  tds?: number;
+  // recipe
   brewRecipeName: string;
+  brewRecipeDetails: string;
+  isGoToRecipe: boolean;
+  // flavor
   flavorProfile: FlavorProfile;
-  brewDate: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -75,12 +173,81 @@ function worstIdx(vals: number[], lowerBetter = false): number {
   return bestIdx(vals, !lowerBetter);
 }
 
-function numDelta(a: number, b: number, lowerBetter = false): string {
+function numDelta(a: number, b: number): string {
   const d = b - a;
   if (d === 0) return '';
-  const better = lowerBetter ? d < 0 : d > 0;
   const sign = d > 0 ? '+' : '';
-  return `${sign}${d % 1 === 0 ? d : d.toFixed(1)}${better ? '' : ''}`;
+  return `${sign}${d % 1 === 0 ? d : d.toFixed(1)}`;
+}
+
+// ── Small helpers ──────────────────────────────────────────────────────────────
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <label className="text-[10px] font-medium text-brew-muted uppercase tracking-wider">{children}</label>;
+}
+
+function SlotInput({
+  label, type = 'number', value, onChange, step, placeholder, options, textarea,
+}: {
+  label: string; type?: string; value: any; onChange: (v: any) => void;
+  step?: number; placeholder?: string; options?: string[]; textarea?: boolean;
+}) {
+  const base = 'w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-sm text-brew-text focus:outline-none focus:border-brew-primary';
+  if (options) return (
+    <div className="flex flex-col gap-1">
+      <FieldLabel>{label}</FieldLabel>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={`${base} appearance-none`}>
+        <option value="">—</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+  if (textarea) return (
+    <div className="flex flex-col gap-1">
+      <FieldLabel>{label}</FieldLabel>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} placeholder={placeholder}
+        className={`${base} resize-none text-xs placeholder-brew-faint`} />
+    </div>
+  );
+  return (
+    <div className="flex flex-col gap-1">
+      <FieldLabel>{label}</FieldLabel>
+      <input type={type} step={step} value={value ?? ''} placeholder={placeholder}
+        onChange={(e) => onChange(type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
+        className={`${base} placeholder-brew-faint`} />
+    </div>
+  );
+}
+
+function SegmentPicker({
+  label, options, value, onChange,
+}: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex flex-wrap gap-1">
+        {options.map((o) => (
+          <button key={o} type="button" onClick={() => onChange(o)}
+            className={`px-2 py-0.5 rounded text-xs border transition-all ${
+              value === o ? 'bg-brew-primary/20 border-brew-primary text-brew-primary-light font-medium'
+                : 'border-brew-border text-brew-faint hover:border-brew-muted'}`}>
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" onClick={() => onChange(!value)}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border transition-all ${
+        value ? 'bg-brew-primary/20 border-brew-primary text-brew-primary-light' : 'border-brew-border text-brew-faint hover:border-brew-muted'}`}>
+      <span className={`w-2 h-2 rounded-full ${value ? 'bg-brew-primary' : 'bg-brew-border'}`} />
+      {label}
+    </button>
+  );
 }
 
 // ── Comparison Row ─────────────────────────────────────────────────────────────
@@ -96,7 +263,7 @@ function CompareRow({
 }) {
   const defined = values.filter((v) => v !== undefined && v !== '' && v !== 0);
   const allSame = defined.length > 0 && defined.every((v) => v === defined[0]);
-  if (allSame && values.length === 2) return null; // filtered by showDiffsOnly upstream
+  if (allSame && values.length === 2) return null;
 
   const nums = numeric ? values.map((v) => Number(v) || 0) : [];
   const best = numeric ? bestIdx(nums, lowerBetter) : -1;
@@ -121,11 +288,10 @@ function CompareRow({
           </span>
         );
       })}
-      {/* Delta col — only for exactly 2 brews */}
       <span className="text-xs text-right text-brew-faint">
         {numeric && values.length === 2 && nums[0] !== nums[1]
           ? <span className={nums[1] > nums[0] !== lowerBetter ? 'text-brew-positive' : 'text-brew-muted'}>
-              {numDelta(nums[0], nums[1], lowerBetter)}{unit}
+              {numDelta(nums[0], nums[1])}{unit}
             </span>
           : values.length > 2 && numeric && !allSame
           ? <span className="text-brew-faint text-[10px]">↕{Math.abs(Math.max(...nums) - Math.min(...nums)).toFixed(nums.some(n => n % 1 !== 0) ? 1 : 0)}{unit}</span>
@@ -150,6 +316,228 @@ function RankBar({ brews }: { brews: { label: string; score: number; color: stri
         </div>
       ))}
     </div>
+  );
+}
+
+// ── Slot Form ──────────────────────────────────────────────────────────────────
+
+function SlotForm({
+  slot, slotIdx, slotCount, coffees, waterRecipes,
+  onUpdate, onUpdateFP, onUpdatePO, onUpdateEsp, onRemove, onCopyFromA,
+}: {
+  slot: SideBySideSlot;
+  slotIdx: number;
+  slotCount: number;
+  coffees: any[];
+  waterRecipes: any[];
+  onUpdate: (patch: Partial<SideBySideSlot>) => void;
+  onUpdateFP: (k: keyof FlavorProfile, v: any) => void;
+  onUpdatePO: (k: keyof PourOverDetails, v: any) => void;
+  onUpdateEsp: (k: keyof EspressoDetails, v: any) => void;
+  onRemove: () => void;
+  onCopyFromA: () => void;
+}) {
+  const isPourOver = slot.brewMethod === 'Pour Over' || slot.brewMethod === 'Immersion';
+  const isEspresso = slot.brewMethod === 'Espresso';
+
+  function handleDeviceChange(device: string) {
+    const shape = DEVICE_SHAPE[device];
+    const preFilter = FILTER_PRESELECT[device] ?? slot.filter;
+    const bypass = resolveBypass(device, preFilter ?? '');
+    onUpdate({ brewingDevice: device, brewerShape: shape, filter: preFilter, bypass });
+  }
+
+  function handleFilterChange(filter: string) {
+    const bypass = resolveBypass(slot.brewingDevice, filter);
+    onUpdate({ filter, bypass });
+  }
+
+  function handleGrinderChange(grinder: string) {
+    const resolved = resolveGrindSize(grinder, slot.grindSetting);
+    onUpdate({ grinder, grindSize: resolved ?? slot.grindSize });
+  }
+
+  function handleGrindSettingChange(setting: number) {
+    const resolved = resolveGrindSize(slot.grinder, setting);
+    onUpdate({ grindSetting: setting, grindSize: resolved ?? slot.grindSize });
+  }
+
+  return (
+    <Card className="p-4 flex flex-col gap-5 min-w-[300px]">
+
+      {/* Slot header */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold" style={{ color: SLOT_COLORS[slotIdx] }}>{SLOT_LABELS[slotIdx]}</span>
+        <div className="flex gap-2 items-center">
+          {slotIdx > 0 && (
+            <button onClick={onCopyFromA}
+              className="text-xs text-brew-faint hover:text-brew-muted transition-colors">
+              Copy A's params
+            </button>
+          )}
+          {slotCount > 2 && (
+            <button onClick={onRemove} className="text-brew-faint hover:text-brew-negative transition-colors">
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Coffee + Date */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <FieldLabel>Coffee</FieldLabel>
+          <select value={slot.coffeeId} onChange={(e) => onUpdate({ coffeeId: e.target.value })}
+            className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-sm text-brew-text focus:outline-none focus:border-brew-primary appearance-none">
+            <option value="">— Select coffee —</option>
+            {coffees.map((c: any) => (
+              <option key={c.id} value={c.id}>{c.roaster} — {c.coffeeName || c.countryOrigin}</option>
+            ))}
+          </select>
+        </div>
+        <SlotInput label="Brew Date" type="date" value={slot.brewDate} onChange={(v) => onUpdate({ brewDate: v })} />
+      </div>
+
+      {/* Brew Method */}
+      <div className="flex flex-col gap-2 border-t border-brew-border pt-4">
+        <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Setup</p>
+        <SegmentPicker label="Brew Method" options={BREW_METHODS} value={slot.brewMethod}
+          onChange={(v) => onUpdate({ brewMethod: v as BrewMethod })} />
+        <div className="grid grid-cols-2 gap-2">
+          <SlotInput label="Device" options={BREWING_DEVICES} value={slot.brewingDevice}
+            onChange={handleDeviceChange} />
+          <SlotInput label="Filter" options={FILTERS} value={slot.filter}
+            onChange={handleFilterChange} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {slot.brewerShape && (
+            <div className="flex flex-col gap-1">
+              <FieldLabel>Shape</FieldLabel>
+              <div className="px-2 py-1.5 text-xs text-brew-muted bg-brew-bg border border-brew-border rounded-lg">{slot.brewerShape}</div>
+            </div>
+          )}
+          {slot.bypass && (
+            <div className="flex flex-col gap-1">
+              <FieldLabel>Bypass</FieldLabel>
+              <div className="px-2 py-1.5 text-xs text-brew-muted bg-brew-bg border border-brew-border rounded-lg">{slot.bypass}</div>
+            </div>
+          )}
+        </div>
+        <SlotInput label="Grinder" options={GRINDERS} value={slot.grinder} onChange={handleGrinderChange} />
+        <div className="grid grid-cols-2 gap-2">
+          <SlotInput label="Grind Setting" type="number" step={0.5} value={slot.grindSetting || ''}
+            onChange={(v) => handleGrindSettingChange(v)} />
+          <SlotInput label="Grind Size" options={GRIND_SIZES} value={slot.grindSize}
+            onChange={(v) => onUpdate({ grindSize: v })} />
+        </div>
+      </div>
+
+      {/* Parameters */}
+      <div className="flex flex-col gap-2 border-t border-brew-border pt-4">
+        <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Parameters</p>
+        <div className="grid grid-cols-2 gap-2">
+          <SlotInput label="Dose (g)" step={0.5} value={slot.coffeeDose || ''} onChange={(v) => onUpdate({ coffeeDose: v })} />
+          <SlotInput label="Water (g)" step={1} value={slot.waterAmount || ''} onChange={(v) => onUpdate({ waterAmount: v })} />
+          <SlotInput label="Temp (°F)" step={1} value={slot.waterTempF || ''} onChange={(v) => onUpdate({ waterTempF: v })} />
+          <SlotInput label="PPM" step={5} value={slot.waterPPM || ''} onChange={(v) => onUpdate({ waterPPM: v })} />
+        </div>
+        <SlotInput label="Water Recipe" options={waterRecipes.map((w: any) => w.name)} value={slot.waterRecipe}
+          onChange={(v) => onUpdate({ waterRecipe: v })} />
+        <div className="grid grid-cols-2 gap-2">
+          <SlotInput label="Final Weight (g)" step={0.5} value={slot.finalBrewWeight ?? ''} onChange={(v) => onUpdate({ finalBrewWeight: v || undefined })} />
+          <SlotInput label="TDS (%)" step={0.01} value={slot.tds ?? ''} onChange={(v) => onUpdate({ tds: v || undefined })} />
+        </div>
+      </div>
+
+      {/* Pour Over Details */}
+      {isPourOver && (
+        <div className="flex flex-col gap-2 border-t border-brew-border pt-4">
+          <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Pour Over Details</p>
+          <div className="grid grid-cols-2 gap-2">
+            <SlotInput label="Total Pours" step={1} value={slot.pourOverDetails.totalPours || ''} onChange={(v) => onUpdatePO('totalPours', v)} />
+            <SlotInput label="Bloom (g)" step={0.5} value={slot.pourOverDetails.bloomAmount || ''} onChange={(v) => onUpdatePO('bloomAmount', v)} />
+            <SlotInput label="Bloom Time (min)" step={0.25} value={slot.pourOverDetails.bloomTime || ''} onChange={(v) => onUpdatePO('bloomTime', v)} />
+            <SlotInput label="Total Time (min)" step={0.25} value={slot.pourOverDetails.totalBrewTime || ''} onChange={(v) => onUpdatePO('totalBrewTime', v)} />
+          </div>
+          <SegmentPicker label="Pour Height" options={HEIGHT_SPEED} value={slot.pourOverDetails.pourHeight}
+            onChange={(v) => onUpdatePO('pourHeight', v as PourHeightSpeed)} />
+          <SegmentPicker label="Pour Speed" options={POUR_SPEEDS} value={slot.pourOverDetails.pourSpeed}
+            onChange={(v) => onUpdatePO('pourSpeed', v as PourHeightSpeed)} />
+          <SlotInput label="Pour Speed ml/s" options={POUR_SPEED_MLS} value={slot.pourOverDetails.pourSpeedMlS ?? ''}
+            onChange={(v) => onUpdatePO('pourSpeedMlS', v)} />
+          <SegmentPicker label="Pour Style" options={[...POUR_STYLES]} value={slot.pourOverDetails.pourStyle ?? ''}
+            onChange={(v) => onUpdatePO('pourStyle', v)} />
+          <SegmentPicker label="Agitation" options={HEIGHT_SPEED} value={slot.pourOverDetails.agitation}
+            onChange={(v) => onUpdatePO('agitation', v as PourHeightSpeed)} />
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            <Toggle label="Melodrip" value={slot.pourOverDetails.melodrip} onChange={(v) => onUpdatePO('melodrip', v)} />
+            <Toggle label="Double Bloom" value={slot.pourOverDetails.doubleBloom} onChange={(v) => onUpdatePO('doubleBloom', v)} />
+            <Toggle label="Varying Speed" value={slot.pourOverDetails.varyingPourSpeed ?? false} onChange={(v) => onUpdatePO('varyingPourSpeed', v)} />
+          </div>
+        </div>
+      )}
+
+      {/* Espresso Details */}
+      {isEspresso && (
+        <div className="flex flex-col gap-2 border-t border-brew-border pt-4">
+          <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Espresso Details</p>
+          <div className="grid grid-cols-2 gap-2">
+            <SlotInput label="Yield (g)" step={0.5} value={slot.espressoDetails.totalYield || ''} onChange={(v) => onUpdateEsp('totalYield', v)} />
+            <SlotInput label="Brew Time (s)" step={1} value={slot.espressoDetails.brewTime || ''} onChange={(v) => onUpdateEsp('brewTime', v)} />
+            <SlotInput label="Max Pressure (bar)" step={0.5} value={slot.espressoDetails.maxPressure || ''} onChange={(v) => onUpdateEsp('maxPressure', v)} />
+          </div>
+        </div>
+      )}
+
+      {/* Recipe */}
+      <div className="flex flex-col gap-2 border-t border-brew-border pt-4">
+        <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Recipe</p>
+        <SlotInput label="Recipe Name" type="text" value={slot.brewRecipeName} placeholder="e.g. Hoffmann 4-6"
+          onChange={(v) => onUpdate({ brewRecipeName: v })} />
+        <SlotInput label="Recipe Details / Steps" value={slot.brewRecipeDetails} textarea
+          placeholder="0:00 – 50g bloom&#10;1:00 – pour to 150g..." onChange={(v) => onUpdate({ brewRecipeDetails: v })} />
+        <div className="mt-1">
+          <Toggle label="⭐ Mark as Go-To" value={slot.isGoToRecipe} onChange={(v) => onUpdate({ isGoToRecipe: v })} />
+        </div>
+      </div>
+
+      {/* Flavor Profile */}
+      <div className="flex flex-col gap-2 border-t border-brew-border pt-4">
+        <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Flavor</p>
+        {FLAVOR_DIMS.map(({ key, label }) => (
+          <Slider key={key} label={label}
+            value={(slot.flavorProfile as any)[key]}
+            onChange={(v) => onUpdateFP(key as keyof FlavorProfile, v)} />
+        ))}
+        {NEG_DIMS.map((key) => (
+          <Slider key={key} label={key.charAt(0).toUpperCase() + key.slice(1)}
+            value={(slot.flavorProfile as any)[key]}
+            onChange={(v) => onUpdateFP(key as keyof FlavorProfile, v)}
+            negative />
+        ))}
+        <div className="flex flex-col gap-1 mt-1">
+          <FieldLabel>Tasting Notes</FieldLabel>
+          <textarea value={slot.flavorProfile.flavorNotes}
+            onChange={(e) => onUpdateFP('flavorNotes', e.target.value)}
+            rows={2} placeholder="jasmine, lemon, peach…"
+            className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-xs text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary resize-none" />
+        </div>
+        <div className="flex gap-2 mt-1">
+          {(['Under', 'Balanced', 'Over'] as PerceivedExtraction[]).map((v) => (
+            <button key={v} type="button" onClick={() => onUpdateFP('perceivedExtraction', v)}
+              className={`flex-1 py-1 rounded text-xs font-medium border transition-all ${
+                slot.flavorProfile.perceivedExtraction === v
+                  ? v === 'Balanced' ? 'bg-brew-positive/20 border-brew-positive text-brew-positive'
+                  : v === 'Over' ? 'bg-brew-negative/20 border-brew-negative text-brew-negative'
+                  : 'bg-brew-primary/20 border-brew-primary text-brew-primary-light'
+                  : 'border-brew-border text-brew-faint'
+              }`}>
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -189,20 +577,25 @@ export default function Compare() {
     .map((id) => data.brews.find((b) => b.id === id))
     .filter(Boolean) as Brew[];
 
-  // ── New cupping mode ───────────────────────────────────────────────────────
-  const blankSlot = (): CuppingSlot => ({
-    coffeeId: '', brewMethod: 'Pour Over', brewingDevice: '',
-    grindSetting: 0, grindSize: '', coffeeDose: 15,
-    waterAmount: 250, waterTempF: 205, waterPPM: 60,
-    brewRecipeName: '', flavorProfile: defaultFP(),
-    brewDate: new Date().toISOString().split('T')[0],
+  // ── New Side by Side mode ──────────────────────────────────────────────────
+  const blankSlot = (): SideBySideSlot => ({
+    coffeeId: '', brewDate: new Date().toISOString().split('T')[0],
+    brewMethod: 'Pour Over', brewingDevice: '', filter: '',
+    brewerShape: undefined, bypass: undefined,
+    grinder: '', grindSetting: 0, grindSize: '',
+    coffeeDose: 15, waterAmount: 250, waterTempF: 205, waterPPM: 60,
+    waterRecipe: '', finalBrewWeight: undefined, tds: undefined,
+    pourOverDetails: defaultPourOver(),
+    espressoDetails: defaultEspresso(),
+    brewRecipeName: '', brewRecipeDetails: '', isGoToRecipe: false,
+    flavorProfile: defaultFP(),
   });
 
-  const [slots, setSlots] = useState<CuppingSlot[]>([blankSlot(), blankSlot()]);
+  const [slots, setSlots] = useState<SideBySideSlot[]>([blankSlot(), blankSlot()]);
 
   function addSlot() { if (slots.length < MAX_SLOTS) setSlots([...slots, blankSlot()]); }
   function removeSlot(i: number) { setSlots(slots.filter((_, idx) => idx !== i)); }
-  function updateSlot(i: number, patch: Partial<CuppingSlot>) {
+  function updateSlot(i: number, patch: Partial<SideBySideSlot>) {
     setSlots(slots.map((s, idx) => idx === i ? { ...s, ...patch } : s));
   }
   function updateFP(i: number, k: keyof FlavorProfile, v: any) {
@@ -210,46 +603,92 @@ export default function Compare() {
       idx === i ? { ...s, flavorProfile: { ...s.flavorProfile, [k]: v } } : s
     ));
   }
+  function updatePO(i: number, k: keyof PourOverDetails, v: any) {
+    setSlots(slots.map((s, idx) =>
+      idx === i ? { ...s, pourOverDetails: { ...s.pourOverDetails, [k]: v } } : s
+    ));
+  }
+  function updateEsp(i: number, k: keyof EspressoDetails, v: any) {
+    setSlots(slots.map((s, idx) =>
+      idx === i ? { ...s, espressoDetails: { ...s.espressoDetails, [k]: v } } : s
+    ));
+  }
+
   function copyParamsToAll(fromIdx: number) {
     const src = slots[fromIdx];
     setSlots(slots.map((s, i) => i === fromIdx ? s : {
       ...s,
       brewMethod: src.brewMethod,
       brewingDevice: src.brewingDevice,
+      filter: src.filter,
+      brewerShape: src.brewerShape,
+      bypass: src.bypass,
+      grinder: src.grinder,
+      grindSetting: src.grindSetting,
+      grindSize: src.grindSize,
       coffeeDose: src.coffeeDose,
       waterAmount: src.waterAmount,
       waterTempF: src.waterTempF,
       waterPPM: src.waterPPM,
+      waterRecipe: src.waterRecipe,
+      pourOverDetails: { ...src.pourOverDetails },
+      espressoDetails: { ...src.espressoDetails },
       brewRecipeName: src.brewRecipeName,
+      brewRecipeDetails: src.brewRecipeDetails,
     }));
   }
 
   function handleSaveAll() {
     if (slots.some((s) => !s.coffeeId)) { alert('Please select a coffee for each brew.'); return; }
+    const coffee0 = getCoffee(slots[0].coffeeId);
     slots.forEach((s) => {
+      const coffee = getCoffee(s.coffeeId);
       const score = calcBrewScore(s.flavorProfile);
+      const isPourOver = s.brewMethod === 'Pour Over' || s.brewMethod === 'Immersion';
+      const isEspresso = s.brewMethod === 'Espresso';
       addBrew({
         coffeeId: s.coffeeId,
         brewDate: s.brewDate,
-        brewMethod: s.brewMethod as any,
-        grinder: '', grindSetting: s.grindSetting, grindSize: s.grindSize,
-        brewingDevice: s.brewingDevice, filter: '', coffeeDose: s.coffeeDose,
-        waterAmount: s.waterAmount, waterTempF: s.waterTempF,
-        waterPPM: s.waterPPM, waterRecipe: '', apaxDropsUsed: false, apaxDrops: {},
-        brewRecipeName: s.brewRecipeName, brewRecipeDetails: '',
+        brewMethod: s.brewMethod,
+        brewingDevice: s.brewingDevice,
+        filter: s.filter,
+        brewerShape: s.brewerShape,
+        bypass: s.bypass,
+        grinder: s.grinder,
+        grindSetting: s.grindSetting,
+        grindSize: s.grindSize,
+        coffeeDose: s.coffeeDose,
+        waterAmount: s.waterAmount,
+        waterTempF: s.waterTempF,
+        waterPPM: s.waterPPM,
+        waterRecipe: s.waterRecipe,
+        apaxDropsUsed: false, apaxDrops: {},
+        brewRecipeName: s.brewRecipeName,
+        brewRecipeDetails: s.brewRecipeDetails,
+        isGoToRecipe: s.isGoToRecipe,
+        isQuickLog: false,
+        finalBrewWeight: s.finalBrewWeight,
+        tds: s.tds,
+        pourOverDetails: isPourOver ? s.pourOverDetails : undefined,
+        espressoDetails: isEspresso ? s.espressoDetails : undefined,
         flavorProfile: s.flavorProfile,
         brewScore: score,
         brewRatio: s.coffeeDose > 0 ? Math.round((s.waterAmount / s.coffeeDose) * 100) / 100 : undefined,
-        isGoToRecipe: false, isQuickLog: false,
-        coffeeProcessingMethod: getCoffee(s.coffeeId)?.processingMethod,
-        coffeeVarietal: getCoffee(s.coffeeId)?.varietal,
-        coffeeOrigin: getCoffee(s.coffeeId)?.countryOrigin,
-        coffeeRegion: getCoffee(s.coffeeId)?.region,
-        coffeeRoastLevel: getCoffee(s.coffeeId)?.roastLevel,
+        bloomRatio: (isPourOver && s.pourOverDetails.bloomAmount > 0 && s.coffeeDose > 0)
+          ? Math.round((s.pourOverDetails.bloomAmount / s.coffeeDose) * 100) / 100 : undefined,
+        coffeeProcessingMethod: coffee?.processingMethod,
+        coffeeVarietal: coffee?.varietal,
+        coffeeOrigin: coffee?.countryOrigin,
+        coffeeRegion: coffee?.region,
+        coffeeRoastLevel: coffee?.roastLevel,
+        daysOffRoast: coffee?.roastDate ? daysOffRoast(coffee.roastDate, s.brewDate) : undefined,
       });
     });
+    // Navigate to compare existing with the newly saved brews
     alert(`${slots.length} brews saved to your journal.`);
     setSlots([blankSlot(), blankSlot()]);
+    // ignore coffee0 intentionally — reset is the safe path
+    void coffee0;
   }
 
   // ── Brew data for comparison view ──────────────────────────────────────────
@@ -258,7 +697,6 @@ export default function Compare() {
     coffee?: ReturnType<typeof getCoffee>;
     fp: FlavorProfile;
     date: string;
-    // params
     device: string; filter: string; bypass: string; shape: string;
     grinder: string; grindSetting: number; grindSize: string;
     dose: number; water: number; ratio: string; tempF: number; tempC: number; ppm: number;
@@ -311,12 +749,24 @@ export default function Compare() {
         coffee: getCoffee(s.coffeeId),
         fp: s.flavorProfile,
         date: formatDate(s.brewDate),
-        device: s.brewingDevice || '—', filter: '—', bypass: '—', shape: '—',
-        grinder: '—', grindSetting: s.grindSetting,
+        device: s.brewingDevice || '—', filter: s.filter || '—',
+        bypass: s.bypass || '—', shape: s.brewerShape || '—',
+        grinder: s.grinder || '—', grindSetting: s.grindSetting,
         grindSize: s.grindSize || '—',
         dose: s.coffeeDose, water: s.waterAmount,
         ratio: brewRatio(s.waterAmount, s.coffeeDose),
         tempF: s.waterTempF, tempC: fToC(s.waterTempF), ppm: s.waterPPM,
+        pours: s.pourOverDetails.totalPours,
+        bloom: s.pourOverDetails.bloomAmount,
+        bloomTime: s.pourOverDetails.bloomTime,
+        brewTime: s.pourOverDetails.totalBrewTime,
+        pourHeight: s.pourOverDetails.pourHeight,
+        pourSpeed: s.pourOverDetails.pourSpeed,
+        pourSpeedMlS: s.pourOverDetails.pourSpeedMlS,
+        agitation: s.pourOverDetails.agitation,
+        melodrip: s.pourOverDetails.melodrip,
+        doubleBloom: s.pourOverDetails.doubleBloom,
+        varyingPourSpeed: s.pourOverDetails.varyingPourSpeed,
       }));
 
   const hasData = compBrews.length >= 2 && (
@@ -374,7 +824,6 @@ Return ONLY the JSON array, no markdown.`,
     return entry;
   });
 
-  // ── Check if all values same (for diffs-only filter) ──────────────────────
   function allSame(vals: (string | number | undefined)[]) {
     const d = vals.filter(v => v !== undefined && v !== '' && v !== 0 && v !== '—');
     return d.length > 0 && d.every(v => v === d[0]);
@@ -384,7 +833,6 @@ Return ONLY the JSON array, no markdown.`,
     return !showDiffsOnly || !allSame(vals);
   }
 
-  // ── Brew options for selectors ─────────────────────────────────────────────
   const brewOptions = data.brews.map((b) => {
     const c = getCoffee(b.coffeeId);
     const score = calcBrewScore(b.flavorProfile);
@@ -396,7 +844,7 @@ Return ONLY the JSON array, no markdown.`,
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -407,9 +855,8 @@ Return ONLY the JSON array, no markdown.`,
           </button>
           <h1 className="font-display italic text-brew-text text-2xl leading-tight">Compare Brews</h1>
         </div>
-        {/* Mode toggle */}
         <div className="flex rounded-lg border border-brew-border overflow-hidden text-sm">
-          {([['existing', GitCompare, 'Compare Existing'], ['new', FlaskConical, 'New Cupping']] as const).map(([m, Icon, lbl]) => (
+          {([['existing', GitCompare, 'Compare Existing'], ['new', FlaskConical, 'New Side by Side']] as const).map(([m, Icon, lbl]) => (
             <button key={m} onClick={() => setMode(m as any)}
               className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${mode === m ? 'bg-brew-primary/15 text-brew-primary-light font-medium' : 'text-brew-muted hover:text-brew-text'}`}>
               <Icon size={13} />{lbl}
@@ -418,7 +865,7 @@ Return ONLY the JSON array, no markdown.`,
         </div>
       </div>
 
-      {/* ── EXISTING MODE: brew selectors ───────────────────────────── */}
+      {/* ── EXISTING MODE ───────────────────────────────────────────── */}
       {mode === 'existing' && (
         <Card className="p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -434,11 +881,8 @@ Return ONLY the JSON array, no markdown.`,
             {existingIds.map((id, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: SLOT_COLORS[i] }} />
-                <select
-                  value={id}
-                  onChange={(e) => setExistingId(i, e.target.value)}
-                  className="flex-1 bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary appearance-none"
-                >
+                <select value={id} onChange={(e) => setExistingId(i, e.target.value)}
+                  className="flex-1 bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary appearance-none">
                   <option value="">— {SLOT_LABELS[i]}: pick a brew —</option>
                   {brewOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -453,160 +897,59 @@ Return ONLY the JSON array, no markdown.`,
         </Card>
       )}
 
-      {/* ── NEW CUPPING MODE: slot forms ────────────────────────────── */}
+      {/* ── NEW SIDE BY SIDE MODE ────────────────────────────────────── */}
       {mode === 'new' && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-brew-muted">Fill in each cup — parameters can be shared, flavors are individual.</p>
-            <div className="flex items-center gap-2">
-              {slots.length < MAX_SLOTS && (
-                <button onClick={addSlot}
-                  className="flex items-center gap-1 text-xs text-brew-primary hover:text-brew-primary-light transition-colors">
-                  <Plus size={12} /> Add Cup
-                </button>
-              )}
-            </div>
+            <p className="text-sm text-brew-muted">Log each brew in full — parameters can be shared, flavors are individual.</p>
+            {slots.length < MAX_SLOTS && (
+              <button onClick={addSlot}
+                className="flex items-center gap-1 text-xs text-brew-primary hover:text-brew-primary-light transition-colors">
+                <Plus size={12} /> Add Cup
+              </button>
+            )}
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="grid gap-3 min-w-[320px]" style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(280px, 1fr))` }}>
+          <div className="overflow-x-auto pb-2">
+            <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(300px, 1fr))` }}>
               {slots.map((slot, i) => (
-                <Card key={i} className="p-4 flex flex-col gap-4">
-                  {/* Slot header */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold" style={{ color: SLOT_COLORS[i] }}>{SLOT_LABELS[i]}</span>
-                    <div className="flex gap-2">
-                      {i > 0 && (
-                        <button onClick={() => copyParamsToAll(0)}
-                          className="text-xs text-brew-faint hover:text-brew-muted transition-colors">
-                          Copy A's params
-                        </button>
-                      )}
-                      {slots.length > 2 && (
-                        <button onClick={() => removeSlot(i)} className="text-brew-faint hover:text-brew-negative transition-colors">
-                          <X size={13} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Coffee */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Coffee</label>
-                    <select
-                      value={slot.coffeeId}
-                      onChange={(e) => updateSlot(i, { coffeeId: e.target.value })}
-                      className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary appearance-none"
-                    >
-                      <option value="">— Select coffee —</option>
-                      {data.coffees.map((c) => (
-                        <option key={c.id} value={c.id}>{c.roaster} — {c.coffeeName || c.countryOrigin}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Key params */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: 'Dose (g)', key: 'coffeeDose', step: 0.5 },
-                      { label: 'Water (g)', key: 'waterAmount', step: 1 },
-                      { label: 'Temp (°F)', key: 'waterTempF', step: 1 },
-                      { label: 'PPM', key: 'waterPPM', step: 5 },
-                    ].map(({ label, key, step }) => (
-                      <div key={key} className="flex flex-col gap-1">
-                        <label className="text-xs text-brew-faint">{label}</label>
-                        <input
-                          type="number" step={step}
-                          value={(slot as any)[key] || ''}
-                          onChange={(e) => updateSlot(i, { [key]: parseFloat(e.target.value) || 0 } as any)}
-                          className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-sm text-brew-text focus:outline-none focus:border-brew-primary"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-brew-faint">Recipe Name</label>
-                    <input
-                      type="text" value={slot.brewRecipeName}
-                      onChange={(e) => updateSlot(i, { brewRecipeName: e.target.value })}
-                      placeholder="e.g. Hoffmann 4-6"
-                      className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary"
-                    />
-                  </div>
-
-                  {/* Flavor profile */}
-                  <div className="border-t border-brew-border pt-3 flex flex-col gap-2">
-                    <p className="text-xs font-medium text-brew-muted uppercase tracking-wider">Flavor</p>
-                    {FLAVOR_DIMS.map(({ key, label }) => (
-                      <Slider
-                        key={key} label={label}
-                        value={(slot.flavorProfile as any)[key]}
-                        onChange={(v) => updateFP(i, key as keyof FlavorProfile, v)}
-                      />
-                    ))}
-                    {NEG_DIMS.map((key) => (
-                      <Slider
-                        key={key} label={key.charAt(0).toUpperCase() + key.slice(1)}
-                        value={(slot.flavorProfile as any)[key]}
-                        onChange={(v) => updateFP(i, key as keyof FlavorProfile, v)}
-                        negative
-                      />
-                    ))}
-                    <div className="flex flex-col gap-1 mt-1">
-                      <label className="text-xs text-brew-faint">Tasting Notes</label>
-                      <textarea
-                        value={slot.flavorProfile.flavorNotes}
-                        onChange={(e) => updateFP(i, 'flavorNotes', e.target.value)}
-                        rows={2}
-                        placeholder="jasmine, lemon, peach..."
-                        className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-xs text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary resize-none"
-                      />
-                    </div>
-                    <div className="flex gap-2 mt-1">
-                      {(['Under', 'Balanced', 'Over'] as PerceivedExtraction[]).map((v) => (
-                        <button key={v} type="button"
-                          onClick={() => updateFP(i, 'perceivedExtraction', v)}
-                          className={`flex-1 py-1 rounded text-xs font-medium border transition-all ${
-                            slot.flavorProfile.perceivedExtraction === v
-                              ? v === 'Balanced' ? 'bg-brew-positive/20 border-brew-positive text-brew-positive'
-                              : v === 'Over' ? 'bg-brew-negative/20 border-brew-negative text-brew-negative'
-                              : 'bg-brew-primary/20 border-brew-primary text-brew-primary-light'
-                              : 'border-brew-border text-brew-faint'
-                          }`}>
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </Card>
+                <SlotForm
+                  key={i}
+                  slot={slot}
+                  slotIdx={i}
+                  slotCount={slots.length}
+                  coffees={data.coffees}
+                  waterRecipes={data.waterRecipes}
+                  onUpdate={(patch) => updateSlot(i, patch)}
+                  onUpdateFP={(k, v) => updateFP(i, k, v)}
+                  onUpdatePO={(k, v) => updatePO(i, k, v)}
+                  onUpdateEsp={(k, v) => updateEsp(i, k, v)}
+                  onRemove={() => removeSlot(i)}
+                  onCopyFromA={() => copyParamsToAll(0)}
+                />
               ))}
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <Button onClick={handleSaveAll} size="lg">
-              Save All {slots.length} Brews to Journal
-            </Button>
-          </div>
+          <Button onClick={handleSaveAll} size="lg">
+            Save All {slots.length} Brews to Journal
+          </Button>
         </div>
       )}
 
-      {/* ── COMPARISON VIEW (both modes) ────────────────────────────── */}
+      {/* ── COMPARISON VIEW ──────────────────────────────────────────── */}
       {hasData && (
         <>
           {/* Rank bar */}
-          {compBrews.length >= 2 && (
-            <Card className="p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-2">
-                  <Trophy size={16} className="text-brew-gold" />
-                  <span className="text-sm font-semibold text-brew-text">Ranking</span>
-                </div>
-                <RankBar brews={compBrews.map((b) => ({ label: b.label, score: b.score, color: b.color }))} />
+          <Card className="p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <Trophy size={16} className="text-brew-gold" />
+                <span className="text-sm font-semibold text-brew-text">Ranking</span>
               </div>
-            </Card>
-          )}
+              <RankBar brews={compBrews.map((b) => ({ label: b.label, score: b.score, color: b.color }))} />
+            </div>
+          </Card>
 
           {/* AI Insights */}
           <Card className="p-5 flex flex-col gap-4 border-brew-primary/20 bg-brew-primary/5">
@@ -658,8 +1001,7 @@ Return ONLY the JSON array, no markdown.`,
               <span />
               {compBrews.map((b) => (
                 <span key={b.label} className="text-xs font-bold text-center" style={{ color: b.color }}>
-                  {b.label}
-                  <br />
+                  {b.label}<br />
                   <span className="font-normal text-brew-faint">{b.date}</span>
                 </span>
               ))}
@@ -723,8 +1065,6 @@ Return ONLY the JSON array, no markdown.`,
           {/* Flavor Profile */}
           <Card className="p-5 flex flex-col gap-4">
             <SectionTitle>Flavor Profile</SectionTitle>
-
-            {/* Scores */}
             <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compBrews.length}, 1fr)` }}>
               {compBrews.map((b) => (
                 <div key={b.label} className="flex items-center gap-3">
@@ -740,7 +1080,6 @@ Return ONLY the JSON array, no markdown.`,
               ))}
             </div>
 
-            {/* Radar (3-4 brews) or bars (2 brews) */}
             {compBrews.length >= 3 ? (
               <ResponsiveContainer width="100%" height={320}>
                 <RadarChart data={radarData}>
@@ -775,10 +1114,7 @@ Return ONLY the JSON array, no markdown.`,
                         {vals.map((v, i) => (
                           <div key={i} className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 rounded-full" style={{ background: '#e5ddd0' }}>
-                              <div className="h-full rounded-full" style={{
-                                width: `${v * 10}%`,
-                                background: i === bi ? '#2d6e4e' : '#b0a090',
-                              }} />
+                              <div className="h-full rounded-full" style={{ width: `${v * 10}%`, background: i === bi ? '#2d6e4e' : '#b0a090' }} />
                             </div>
                             <span className="text-xs font-bold tabular-nums w-4 text-right"
                               style={{ color: i === bi ? '#2d6e4e' : '#b0a090' }}>{v}</span>
@@ -788,7 +1124,6 @@ Return ONLY the JSON array, no markdown.`,
                     </div>
                   );
                 })}
-                {/* Negative dims */}
                 {NEG_DIMS.map((key) => {
                   const vals = compBrews.map(b => (b.fp as any)[key] as number);
                   const bi = bestIdx(vals, true);
@@ -807,10 +1142,7 @@ Return ONLY the JSON array, no markdown.`,
                         {vals.map((v, i) => (
                           <div key={i} className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 rounded-full" style={{ background: '#e5ddd0' }}>
-                              <div className="h-full rounded-full" style={{
-                                width: `${v * 10}%`,
-                                background: i === bi ? '#2d6e4e' : '#9b3328',
-                              }} />
+                              <div className="h-full rounded-full" style={{ width: `${v * 10}%`, background: i === bi ? '#2d6e4e' : '#9b3328' }} />
                             </div>
                             <span className="text-xs font-bold tabular-nums w-4 text-right"
                               style={{ color: i === bi ? '#2d6e4e' : '#9b3328' }}>{v}</span>
@@ -826,7 +1158,7 @@ Return ONLY the JSON array, no markdown.`,
         </>
       )}
 
-      {/* Empty state */}
+      {/* Empty states */}
       {mode === 'existing' && !hasData && data.brews.length === 0 && (
         <Card className="p-12 flex flex-col items-center gap-3 text-center">
           <p className="text-brew-text font-medium">No brews logged yet</p>
@@ -838,7 +1170,7 @@ Return ONLY the JSON array, no markdown.`,
       {mode === 'existing' && !hasData && data.brews.length > 0 && (
         <Card className="p-12 flex flex-col items-center gap-3 text-center">
           <p className="text-brew-text font-medium">Select at least 2 brews above to compare</p>
-          <p className="text-brew-muted text-sm">Or switch to New Cupping to log fresh brews side by side.</p>
+          <p className="text-brew-muted text-sm">Or switch to New Side by Side to log fresh brews simultaneously.</p>
         </Card>
       )}
 
