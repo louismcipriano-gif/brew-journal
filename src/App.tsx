@@ -10,6 +10,7 @@ import Analytics from './pages/Analytics';
 import Recipes, { RecipeForm, RecipeDetail } from './pages/Recipes';
 import WaterRecipes, { WaterRecipeForm, WaterRecipeDetail } from './pages/WaterRecipes';
 import Settings from './pages/Settings';
+import Compare from './pages/Compare';
 
 function AppRoutes() {
   const { loading } = useApp();
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="/water-recipes/:id" element={<WaterRecipeDetail />} />
         <Route path="/water-recipes/:id/edit" element={<WaterRecipeForm />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/compare" element={<Compare />} />
       </Routes>
     </Layout>
   );
