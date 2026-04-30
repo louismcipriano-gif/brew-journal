@@ -13,7 +13,7 @@ import { Card, SectionTitle, ScoreRing, Button, Slider } from '../components/ui'
 import { calcBrewScore, daysOffRoast, formatDate, brewRatio, fToC } from '../utils';
 import type {
   Brew, FlavorProfile, PerceivedExtraction, BrewMethod,
-  PourOverDetails, EspressoDetails, PourHeightSpeed,
+  PourOverDetails, EspressoDetails, PourHeightSpeed, SavedRecipe,
 } from '../types';
 import { getApiKey } from './Settings';
 
@@ -321,8 +321,28 @@ function RankBar({ brews }: { brews: { label: string; score: number; color: stri
 
 // ── Slot Form ──────────────────────────────────────────────────────────────────
 
+function applyRecipeToSlot(r: SavedRecipe): Partial<SideBySideSlot> {
+  return {
+    brewMethod: r.brewMethod,
+    brewingDevice: r.brewingDevice,
+    filter: r.filter ?? '',
+    brewerShape: r.brewerShape,
+    bypass: r.bypass,
+    grindSize: r.grindSize ?? '',
+    coffeeDose: r.coffeeDose,
+    waterAmount: r.waterAmount,
+    waterTempF: r.waterTempF,
+    waterPPM: r.waterPPM,
+    waterRecipe: r.waterRecipe,
+    brewRecipeName: r.name,
+    brewRecipeDetails: r.recipeDetails,
+    pourOverDetails: r.pourOverDetails ?? defaultPourOver(),
+    espressoDetails: r.espressoDetails ?? defaultEspresso(),
+  };
+}
+
 function SlotForm({
-  slot, slotIdx, slotCount, coffees, waterRecipes,
+  slot, slotIdx, slotCount, coffees, waterRecipes, savedRecipes,
   onUpdate, onUpdateFP, onUpdatePO, onUpdateEsp, onRemove, onCopyFromA,
 }: {
   slot: SideBySideSlot;
@@ -330,6 +350,7 @@ function SlotForm({
   slotCount: number;
   coffees: any[];
   waterRecipes: any[];
+  savedRecipes: SavedRecipe[];
   onUpdate: (patch: Partial<SideBySideSlot>) => void;
   onUpdateFP: (k: keyof FlavorProfile, v: any) => void;
   onUpdatePO: (k: keyof PourOverDetails, v: any) => void;
@@ -382,6 +403,26 @@ function SlotForm({
           )}
         </div>
       </div>
+
+      {/* Load Saved Recipe */}
+      {savedRecipes.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <FieldLabel>Load Saved Recipe</FieldLabel>
+          <select
+            value=""
+            onChange={(e) => {
+              const r = savedRecipes.find((r) => r.id === e.target.value);
+              if (r) onUpdate(applyRecipeToSlot(r));
+            }}
+            className="w-full bg-brew-surface border border-brew-primary/40 rounded-lg px-2 py-1.5 text-sm text-brew-text focus:outline-none focus:border-brew-primary appearance-none"
+          >
+            <option value="">— Pick a recipe to auto-fill —</option>
+            {savedRecipes.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}{r.source ? ` · ${r.source}` : ''}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Coffee + Date */}
       <div className="flex flex-col gap-3">
@@ -920,6 +961,7 @@ Return ONLY the JSON array, no markdown.`,
                   slotCount={slots.length}
                   coffees={data.coffees}
                   waterRecipes={data.waterRecipes}
+                  savedRecipes={data.recipes}
                   onUpdate={(patch) => updateSlot(i, patch)}
                   onUpdateFP={(k, v) => updateFP(i, k, v)}
                   onUpdatePO={(k, v) => updatePO(i, k, v)}
