@@ -1,25 +1,45 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked, Settings2, Plus, Droplets, GitCompare } from 'lucide-react';
+import {
+  LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked,
+  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X,
+} from 'lucide-react';
 import { Button } from './ui';
 
-const nav = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/coffees', icon: Coffee, label: 'Coffees' },
-  { to: '/brews', icon: BookOpen, label: 'Brew Journal' },
-  { to: '/recipes', icon: BookMarked, label: 'Recipes' },
-  { to: '/water-recipes', icon: Droplets, label: 'Water' },
-  { to: '/compare', icon: GitCompare, label: 'Compare' },
+const primaryNav = [
+  { to: '/',      icon: LayoutDashboard, label: 'Home'    },
+  { to: '/brews', icon: BookOpen,        label: 'Brews'   },
+  // FAB slot in the middle
+  { to: '/coffees',   icon: Coffee,   label: 'Coffees'  },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+];
+
+const moreNav = [
+  { to: '/recipes',       icon: BookMarked,  label: 'Recipes'  },
+  { to: '/water-recipes', icon: Droplets,    label: 'Water'    },
+  { to: '/compare',       icon: GitCompare,  label: 'Compare'  },
+  { to: '/settings',      icon: Settings2,   label: 'Settings' },
+];
+
+const sidebarNav = [
+  { to: '/',              icon: LayoutDashboard, label: 'Dashboard'    },
+  { to: '/coffees',       icon: Coffee,          label: 'Coffees'      },
+  { to: '/brews',         icon: BookOpen,        label: 'Brew Journal' },
+  { to: '/recipes',       icon: BookMarked,      label: 'Recipes'      },
+  { to: '/water-recipes', icon: Droplets,        label: 'Water'        },
+  { to: '/compare',       icon: GitCompare,      label: 'Compare'      },
+  { to: '/analytics',     icon: BarChart3,       label: 'Analytics'    },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen w-full bg-brew-bg text-brew-text">
 
-      {/* ── Desktop Sidebar ─────────────────────────────────── */}
+      {/* ── Desktop Sidebar ───────────────────────────────────── */}
       <aside className="hidden md:flex fixed left-0 top-0 h-full w-56 bg-brew-surface border-r border-brew-border flex-col z-20">
         <div className="px-5 pt-6 pb-4 border-b border-brew-border">
           <div className="flex items-center gap-2.5">
@@ -40,7 +60,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 pt-4 flex flex-col gap-0.5">
-          {nav.map(({ to, icon: Icon, label }) => (
+          {sidebarNav.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -71,60 +91,116 @@ export default function Layout({ children }: { children: ReactNode }) {
             <Settings2 size={16} />
             Settings
           </NavLink>
-          <p className="text-xs text-brew-faint mt-2 px-3">All data stored locally.</p>
         </div>
       </aside>
 
-      {/* ── Main content ─────────────────────────────────────── */}
-      <main className="flex-1 min-h-screen md:ml-56 pb-20 md:pb-0">
-        <div className="max-w-6xl mx-auto px-4 py-6 md:px-8 md:py-8">
+      {/* ── Main content ──────────────────────────────────────── */}
+      <main className="flex-1 min-h-screen md:ml-56 pb-28 md:pb-8">
+        <div className="max-w-6xl mx-auto px-4 py-5 md:px-8 md:py-8">
           {children}
         </div>
       </main>
 
-      {/* ── Mobile Bottom Nav ────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-brew-surface border-t border-brew-border flex items-center">
-        {nav.slice(0, 2).map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-xs font-medium transition-colors ${
-                isActive ? 'text-brew-primary-light' : 'text-brew-faint'
-              }`
-            }
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
+      {/* ── Mobile: More sheet backdrop ───────────────────────── */}
+      {moreOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={() => setMoreOpen(false)}
+        />
+      )}
 
-        {/* Centre Log Brew FAB */}
-        <div className="flex-shrink-0 px-3">
-          <button
-            onClick={() => navigate('/brews/new')}
-            className="w-12 h-12 rounded-full bg-brew-primary flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-          >
-            <Plus size={22} className="text-brew-bg" />
+      {/* ── Mobile: More sheet ────────────────────────────────── */}
+      <div className={`md:hidden fixed left-0 right-0 z-50 bg-brew-surface rounded-t-2xl border-t border-brew-border shadow-xl transition-transform duration-300 ${moreOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ bottom: 0 }}
+      >
+        {/* drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-brew-border" />
+        </div>
+        <div className="flex items-center justify-between px-5 pb-3">
+          <span className="text-sm font-semibold text-brew-text">More</span>
+          <button onClick={() => setMoreOpen(false)} className="p-1 text-brew-faint">
+            <X size={18} />
           </button>
         </div>
+        <div className="grid grid-cols-4 gap-1 px-4 pb-6" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+          {moreNav.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={() => setMoreOpen(false)}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl transition-colors ${
+                  isActive ? 'bg-brew-primary/15 text-brew-primary-light' : 'text-brew-muted active:bg-brew-card'
+                }`
+              }
+            >
+              <Icon size={22} />
+              <span className="text-xs font-medium">{label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </div>
 
-        {nav.slice(2).map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-xs font-medium transition-colors ${
-                isActive ? 'text-brew-primary-light' : 'text-brew-faint'
-              }`
-            }
+      {/* ── Mobile Bottom Nav ─────────────────────────────────── */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-brew-surface border-t border-brew-border"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex items-center h-16">
+          {/* First 2 primary items */}
+          {primaryNav.slice(0, 2).map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center h-full gap-1 transition-colors ${
+                  isActive ? 'text-brew-primary-light' : 'text-brew-faint'
+                }`
+              }
+            >
+              <Icon size={22} />
+              <span className="text-[11px] font-medium">{label}</span>
+            </NavLink>
+          ))}
+
+          {/* Centre FAB */}
+          <div className="flex-shrink-0 flex items-center justify-center px-4">
+            <button
+              onClick={() => navigate('/brews/new')}
+              className="w-14 h-14 rounded-full bg-brew-primary flex items-center justify-center shadow-lg active:scale-95 transition-transform -mt-5"
+            >
+              <Plus size={26} className="text-brew-bg" />
+            </button>
+          </div>
+
+          {/* Last 2 primary items */}
+          {primaryNav.slice(2).map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center h-full gap-1 transition-colors ${
+                  isActive ? 'text-brew-primary-light' : 'text-brew-faint'
+                }`
+              }
+            >
+              <Icon size={22} />
+              <span className="text-[11px] font-medium">{label}</span>
+            </NavLink>
+          ))}
+
+          {/* More button */}
+          <button
+            onClick={() => setMoreOpen(true)}
+            className="flex-1 flex flex-col items-center justify-center h-full gap-1 text-brew-faint active:text-brew-text transition-colors"
           >
-            <Icon size={20} />
-            <span className="text-[10px]">{label}</span>
-          </NavLink>
-        ))}
+            <MoreHorizontal size={22} />
+            <span className="text-[11px] font-medium">More</span>
+          </button>
+        </div>
       </nav>
     </div>
   );
