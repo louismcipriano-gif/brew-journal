@@ -247,7 +247,7 @@ export default function BrewDetail() {
               <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
                 <PolarGrid stroke="#e5ddd0" />
                 <PolarAngleAxis dataKey="attr" tick={{ fill: '#a8907c', fontSize: 11 }} />
-                <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
+                <PolarRadiusAxis domain={[1, 5]} tick={false} axisLine={false} />
                 <Radar
                   name="Flavor"
                   dataKey="value"

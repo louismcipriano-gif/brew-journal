@@ -89,15 +89,15 @@ function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass
 }
 
 const defaultFlavorProfile: FlavorProfile = {
-  acidity: 5,
-  sweetness: 5,
-  body: 5,
-  florality: 5,
-  clarity: 5,
-  juiciness: 5,
-  finish: 5,
-  astringency: 0,
-  sourness: 0,
+  acidity: 3,
+  sweetness: 3,
+  body: 3,
+  florality: 3,
+  clarity: 3,
+  juiciness: 3,
+  finish: 3,
+  astringency: 1,
+  sourness: 1,
   flavorNotes: '',
   perceivedExtraction: 'Balanced',
   moreAcidity: false,
@@ -388,7 +388,7 @@ export default function BrewForm() {
 
       // Flavor profile
       const fp = { ...f.flavorProfile };
-      const clamp = (n: number, lo = 0, hi = 10) => Math.min(hi, Math.max(lo, n));
+      const clamp = (n: number, lo = 1, hi = 5) => Math.min(hi, Math.max(lo, Math.round(n)));
       if (v.acidity     != null) fp.acidity     = clamp(v.acidity);
       if (v.sweetness   != null) fp.sweetness   = clamp(v.sweetness);
       if (v.body        != null) fp.body        = clamp(v.body);

@@ -105,9 +105,9 @@ const FLAVOR_DIMS = [
 const NEG_DIMS = ['astringency', 'sourness'] as const;
 
 const defaultFP = (): FlavorProfile => ({
-  acidity: 5, sweetness: 5, body: 5, florality: 5,
-  clarity: 5, juiciness: 5, finish: 5,
-  astringency: 0, sourness: 0,
+  acidity: 3, sweetness: 3, body: 3, florality: 3,
+  clarity: 3, juiciness: 3, finish: 3,
+  astringency: 1, sourness: 1,
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
   moreFlorality: false, moreBody: false, lessBitterness: false,
@@ -450,7 +450,7 @@ function SlotForm({
     if (v.espressoMaxPressure) onUpdateEsp('maxPressure', v.espressoMaxPressure);
 
     // ── Flavor ──────────────────────────────────────────────────────────────
-    const clamp = (n: number) => Math.max(0, Math.min(10, Math.round(n)));
+    const clamp = (n: number) => Math.max(1, Math.min(5, Math.round(n)));
     if (v.acidity     != null) onUpdateFP('acidity',     clamp(v.acidity));
     if (v.sweetness   != null) onUpdateFP('sweetness',   clamp(v.sweetness));
     if (v.body        != null) onUpdateFP('body',         clamp(v.body));
@@ -1323,7 +1323,7 @@ Return ONLY the JSON array, no markdown.`,
                 <RadarChart data={radarData}>
                   <PolarGrid stroke="#e5ddd0" />
                   <PolarAngleAxis dataKey="attr" tick={{ fontSize: 11, fill: '#8a7a6a' }} />
-                  <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
+                  <PolarRadiusAxis domain={[1, 5]} tick={false} axisLine={false} />
                   {compBrews.map((b) => (
                     <Radar key={b.label} name={b.label} dataKey={b.label}
                       stroke={b.color} fill={b.color} fillOpacity={0.12} strokeWidth={2} />
@@ -1352,7 +1352,7 @@ Return ONLY the JSON array, no markdown.`,
                         {vals.map((v, i) => (
                           <div key={i} className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 rounded-full" style={{ background: '#e5ddd0' }}>
-                              <div className="h-full rounded-full" style={{ width: `${v * 10}%`, background: i === bi ? '#2d6e4e' : '#b0a090' }} />
+                              <div className="h-full rounded-full" style={{ width: `${((v - 1) / 4) * 100}%`, background: i === bi ? '#2d6e4e' : '#b0a090' }} />
                             </div>
                             <span className="text-xs font-bold tabular-nums w-4 text-right"
                               style={{ color: i === bi ? '#2d6e4e' : '#b0a090' }}>{v}</span>
@@ -1380,7 +1380,7 @@ Return ONLY the JSON array, no markdown.`,
                         {vals.map((v, i) => (
                           <div key={i} className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 rounded-full" style={{ background: '#e5ddd0' }}>
-                              <div className="h-full rounded-full" style={{ width: `${v * 10}%`, background: i === bi ? '#2d6e4e' : '#9b3328' }} />
+                              <div className="h-full rounded-full" style={{ width: `${((v - 1) / 4) * 100}%`, background: i === bi ? '#2d6e4e' : '#9b3328' }} />
                             </div>
                             <span className="text-xs font-bold tabular-nums w-4 text-right"
                               style={{ color: i === bi ? '#2d6e4e' : '#9b3328' }}>{v}</span>

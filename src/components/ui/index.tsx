@@ -138,9 +138,10 @@ interface SliderProps {
 
 export function Slider({ label, value, onChange, negative = false, description }: SliderProps) {
   const color = negative ? '#9b3328' : '#5a3820';
+  const pct = ((value - 1) / 4) * 100;
   const bgTrack = negative
-    ? `linear-gradient(to right, #9b3328 0%, #9b3328 ${value * 10}%, #e5ddd0 ${value * 10}%, #e5ddd0 100%)`
-    : `linear-gradient(to right, #5a3820 0%, #5a3820 ${value * 10}%, #e5ddd0 ${value * 10}%, #e5ddd0 100%)`;
+    ? `linear-gradient(to right, #9b3328 0%, #9b3828 ${pct}%, #e5ddd0 ${pct}%, #e5ddd0 100%)`
+    : `linear-gradient(to right, #5a3820 0%, #5a3820 ${pct}%, #e5ddd0 ${pct}%, #e5ddd0 100%)`;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -158,8 +159,8 @@ export function Slider({ label, value, onChange, negative = false, description }
       </div>
       <input
         type="range"
-        min={0}
-        max={10}
+        min={1}
+        max={5}
         step={1}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -167,9 +168,9 @@ export function Slider({ label, value, onChange, negative = false, description }
         style={{ background: bgTrack, width: '100%' }}
       />
       <div className="flex justify-between text-xs text-brew-faint">
-        <span>0</span>
+        <span>1</span>
+        <span>3</span>
         <span>5</span>
-        <span>10</span>
       </div>
     </div>
   );

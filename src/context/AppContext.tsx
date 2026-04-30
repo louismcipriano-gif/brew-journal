@@ -6,6 +6,33 @@ import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'brew-journal-v1';
 const MIGRATED_KEY = 'brew-journal-migrated-v1';
+const FP_SCALE_KEY = 'brew-journal-fp-scale-v2'; // tracks 1-5 flavor scale migration
+
+// ── Flavor profile scale migration (0-10 → 1-5) ──────────────────────────────
+function migrateFP(fp: any): any {
+  if (!fp) return fp;
+  const dims = ['acidity','sweetness','body','florality','clarity','juiciness','finish','astringency','sourness'];
+  const needsMigration = dims.some((k) => (fp[k] ?? 0) > 5);
+  if (!needsMigration) return fp;
+  const scalePos = (v: number) => Math.max(1, Math.min(5, Math.round(v / 2) || 1));
+  const scaleNeg = (v: number) => Math.max(1, Math.min(5, Math.round(v / 2) || 1));
+  return {
+    ...fp,
+    acidity:    scalePos(fp.acidity    ?? 5),
+    sweetness:  scalePos(fp.sweetness  ?? 5),
+    body:       scalePos(fp.body       ?? 5),
+    florality:  scalePos(fp.florality  ?? 5),
+    clarity:    scalePos(fp.clarity    ?? 5),
+    juiciness:  scalePos(fp.juiciness  ?? 5),
+    finish:     scalePos(fp.finish     ?? 5),
+    astringency: scaleNeg(fp.astringency ?? 0),
+    sourness:    scaleNeg(fp.sourness    ?? 0),
+  };
+}
+
+function migrateBrews(brews: Brew[]): Brew[] {
+  return brews.map((b) => ({ ...b, flavorProfile: migrateFP(b.flavorProfile) }));
+}
 
 const defaultData: AppData = { coffees: [], brews: [], recipes: [], waterRecipes: [] };
 
@@ -94,7 +121,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(MIGRATED_KEY, '1');
       }
 
-      setData({ coffees, brews, recipes, waterRecipes });
+      // One-time migration: scale flavor profile values from 0-10 → 1-5
+      const fpMigrated = localStorage.getItem(FP_SCALE_KEY);
+      let finalBrews = brews;
+      if (!fpMigrated && brews.length > 0) {
+        const migrated = migrateBrews(brews);
+        const changed = migrated.filter((b, i) =>
+          JSON.stringify(b.flavorProfile) !== JSON.stringify(brews[i].flavorProfile)
+        );
+        if (changed.length > 0) {
+          await Promise.all(changed.map((b) => sbUpsert('brews', b)));
+          finalBrews = migrated;
+        }
+        localStorage.setItem(FP_SCALE_KEY, '1');
+      }
+
+      setData({ coffees, brews: finalBrews, recipes, waterRecipes });
       setLoading(false);
     }
 

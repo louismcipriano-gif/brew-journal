@@ -386,7 +386,7 @@ export default function Analytics() {
             <RadarChart data={avgRadar} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
               <PolarGrid stroke="#e5ddd0" />
               <PolarAngleAxis dataKey="attr" tick={{ fill: '#a8907c', fontSize: 11 }} />
-              <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} />
+              <PolarRadiusAxis domain={[1, 5]} tick={false} axisLine={false} />
               <Radar name="Avg" dataKey="value" stroke="#5a3820" fill="#5a3820" fillOpacity={0.25} strokeWidth={2} />
               <Tooltip
                 contentStyle={{ background: '#ffffff', border: '1px solid #e5ddd0', borderRadius: 8 }}
@@ -464,7 +464,7 @@ export default function Analytics() {
             <BarChart data={processByMethod} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" />
               <XAxis dataKey="method" tick={{ fill: '#a8907c', fontSize: 10 }} />
-              <YAxis domain={[0, 10]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+              <YAxis domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
               <Tooltip
                 {...tooltipStyle}
                 formatter={tf((v: number, name: string) => [v.toFixed(1), name])}
