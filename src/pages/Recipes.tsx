@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, ArrowLeft, Trash2, Edit2, BookMarked, Zap, Copy } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Edit2, BookMarked, Zap, Copy, Mic, MicOff, Loader2, Link } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Badge, Input, Select, Toggle, EmptyState, SectionTitle, MicButton,
@@ -10,6 +10,10 @@ import type {
   SavedRecipe, BrewMethod, PourOverDetails, EspressoDetails,
   PourHeightSpeed, RecipeAccentuates, GrinderEntry,
 } from '../types';
+import { parseVoiceWithClaude } from '../utils/parseVoiceWithClaude';
+import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
+import { fetchRecipeFromUrl } from '../utils/fetchRecipeFromUrl';
+import { getApiKey, getScreenshotKey } from './Settings';
 
 const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
@@ -222,6 +226,190 @@ export function RecipeForm() {
     });
   }
 
+  // ── Voice fill ────────────────────────────────────────────────────────────
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceParsing, setVoiceParsing] = useState(false);
+  const [voiceInterim, setVoiceInterim] = useState('');
+  const voiceRecRef = useRef<any>(null);
+  const voiceTranscriptRef = useRef('');
+
+  function applyVoiceFields(v: VoiceBrewFields) {
+    setForm((f) => {
+      let u = { ...f };
+      if (v.brewMethod) u.brewMethod = v.brewMethod as BrewMethod;
+      if (v.brewingDevice) {
+        const dev = v.brewingDevice;
+        u.brewingDevice = dev;
+        if (v.filter) u.filter = v.filter;
+        else if (FILTER_PRESELECT[dev]) u.filter = FILTER_PRESELECT[dev];
+        if (!v.brewerShape && DEVICE_SHAPE[dev]) u.brewerShape = DEVICE_SHAPE[dev];
+        const resolvedFilter = u.filter ?? '';
+        if (!v.bypass) u.bypass = resolveBypass(dev, resolvedFilter) ?? f.bypass;
+      } else if (v.filter) {
+        u.filter = v.filter;
+        if (!v.bypass) u.bypass = resolveBypass(f.brewingDevice, v.filter) ?? f.bypass;
+      }
+      if (v.brewerShape) u.brewerShape = v.brewerShape;
+      if (v.bypass) u.bypass = v.bypass;
+      if (v.grindSize) u.grindSize = v.grindSize;
+      if (v.coffeeDose) u.coffeeDose = v.coffeeDose;
+      if (v.waterAmount) u.waterAmount = v.waterAmount;
+      if (v.waterTempF) u.waterTempF = v.waterTempF;
+      if (v.waterPPM != null) u.waterPPM = v.waterPPM;
+      if (v.waterRecipe) u.waterRecipe = v.waterRecipe;
+      if (v.brewRecipeName) u.name = v.brewRecipeName;
+      if (v.brewRecipeDetails) u.recipeDetails = v.brewRecipeDetails;
+
+      // Pour over details
+      if (u.pourOverDetails || v.totalPours || v.bloomAmount || v.bloomTime || v.totalBrewTime
+        || v.pourStyle || v.pourHeight || v.pourSpeed || v.agitation || v.melodrip != null
+        || v.doubleBloom != null || v.varyingPourSpeed != null) {
+        const po = { ...(u.pourOverDetails ?? blankRecipe.pourOverDetails!) };
+        if (v.pourStyle)               po.pourStyle        = v.pourStyle;
+        if (v.pourHeight)              po.pourHeight       = v.pourHeight;
+        if (v.pourSpeed)               po.pourSpeed        = v.pourSpeed;
+        if (v.agitation)               po.agitation        = v.agitation;
+        if (v.pourSpeedMlS)            po.pourSpeedMlS     = v.pourSpeedMlS;
+        if (v.pourSpeedMinMlS)         po.pourSpeedMinMlS  = v.pourSpeedMinMlS;
+        if (v.pourSpeedMaxMlS)         po.pourSpeedMaxMlS  = v.pourSpeedMaxMlS;
+        if (v.melodrip        != null) po.melodrip         = v.melodrip;
+        if (v.doubleBloom     != null) po.doubleBloom      = v.doubleBloom;
+        if (v.varyingPourSpeed!= null) po.varyingPourSpeed = v.varyingPourSpeed;
+        if (v.totalPours)              po.totalPours       = v.totalPours;
+        if (v.bloomAmount)             po.bloomAmount      = v.bloomAmount;
+        if (v.bloomTime)               po.bloomTime        = v.bloomTime;
+        if (v.totalBrewTime)           po.totalBrewTime    = v.totalBrewTime;
+        u.pourOverDetails = po;
+      }
+
+      // Espresso details
+      if (v.espressoYield || v.espressoBrewTime || v.espressoMaxPressure) {
+        const esp = { ...(u.espressoDetails ?? { totalYield: 36, brewTime: 28, maxPressure: 9 }) };
+        if (v.espressoYield)       esp.totalYield  = v.espressoYield;
+        if (v.espressoBrewTime)    esp.brewTime    = v.espressoBrewTime;
+        if (v.espressoMaxPressure) esp.maxPressure = v.espressoMaxPressure;
+        u.espressoDetails = esp;
+      }
+      return u;
+    });
+  }
+
+  async function handleVoiceFill() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition not supported. Use Chrome or Safari.'); return; }
+    if (voiceListening) { voiceRecRef.current?.stop?.(); return; }
+
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    voiceTranscriptRef.current = '';
+
+    rec.onresult = (e: any) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) voiceTranscriptRef.current += t + ' ';
+        else interim = t;
+      }
+      setVoiceInterim(voiceTranscriptRef.current + interim);
+    };
+
+    rec.onend = async () => {
+      setVoiceListening(false);
+      setVoiceInterim('');
+      const transcript = voiceTranscriptRef.current.trim();
+      if (!transcript) return;
+      setVoiceParsing(true);
+      try {
+        const fields = await parseVoiceWithClaude(transcript, getApiKey() ?? undefined);
+        applyVoiceFields(fields);
+      } catch (err: any) {
+        alert(`Voice parse failed: ${err.message}`);
+      } finally {
+        setVoiceParsing(false);
+      }
+    };
+
+    rec.onerror = (e: any) => {
+      setVoiceListening(false);
+      setVoiceInterim('');
+      if (e.error !== 'no-speech' && e.error !== 'aborted') alert(`Mic error: ${e.error}`);
+    };
+
+    voiceRecRef.current = rec;
+    rec.start();
+    setVoiceListening(true);
+  }
+
+  // ── URL import ─────────────────────────────────────────────────────────────
+  const [urlInput, setUrlInput] = useState('');
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+  const [urlError, setUrlError] = useState('');
+
+  async function handleUrlImport() {
+    if (!urlInput.trim()) return;
+    setUrlError('');
+    setFetchingUrl(true);
+    try {
+      const result = await fetchRecipeFromUrl(
+        urlInput.trim(),
+        getApiKey() || undefined,
+        getScreenshotKey() || undefined,
+      );
+      setForm((f) => {
+        const u = { ...f };
+        if (result.name) u.name = result.name;
+        if (result.source) u.source = result.source;
+        if (result.brewMethod) u.brewMethod = result.brewMethod as BrewMethod;
+        if (result.brewingDevice) {
+          u.brewingDevice = result.brewingDevice;
+          if (DEVICE_SHAPE[result.brewingDevice]) u.brewerShape = DEVICE_SHAPE[result.brewingDevice];
+        }
+        if (result.filter) { u.filter = result.filter; u.bypass = resolveBypass(u.brewingDevice, result.filter) ?? u.bypass; }
+        if (result.grindSize) u.grindSize = result.grindSize;
+        if (result.coffeeDose) u.coffeeDose = result.coffeeDose;
+        if (result.waterAmount) u.waterAmount = result.waterAmount;
+        if (result.waterTempF) u.waterTempF = result.waterTempF;
+        if (result.waterPPM != null) u.waterPPM = result.waterPPM;
+        if (result.waterRecipe) u.waterRecipe = result.waterRecipe;
+        if (result.recipeDetails) u.recipeDetails = result.recipeDetails;
+        if (result.totalPours || result.bloomAmount || result.bloomTime || result.totalBrewTime
+          || result.pourHeight || result.pourSpeed || result.agitation || result.melodrip != null) {
+          const po = { ...(u.pourOverDetails ?? blankRecipe.pourOverDetails!) };
+          if (result.pourStyle)               po.pourStyle        = result.pourStyle as any;
+          if (result.pourHeight)              po.pourHeight       = result.pourHeight as any;
+          if (result.pourSpeed)               po.pourSpeed        = result.pourSpeed as any;
+          if (result.agitation)               po.agitation        = result.agitation as any;
+          if (result.pourSpeedMlS)            po.pourSpeedMlS     = result.pourSpeedMlS;
+          if (result.pourSpeedMinMlS)         po.pourSpeedMinMlS  = result.pourSpeedMinMlS;
+          if (result.pourSpeedMaxMlS)         po.pourSpeedMaxMlS  = result.pourSpeedMaxMlS;
+          if (result.melodrip        != null) po.melodrip         = result.melodrip!;
+          if (result.doubleBloom     != null) po.doubleBloom      = result.doubleBloom!;
+          if (result.varyingPourSpeed!= null) po.varyingPourSpeed = result.varyingPourSpeed!;
+          if (result.totalPours)              po.totalPours       = result.totalPours;
+          if (result.bloomAmount)             po.bloomAmount      = result.bloomAmount;
+          if (result.bloomTime)               po.bloomTime        = result.bloomTime;
+          if (result.totalBrewTime)           po.totalBrewTime    = result.totalBrewTime;
+          u.pourOverDetails = po;
+        }
+        if (result.espressoYield || result.espressoBrewTime || result.espressoMaxPressure) {
+          const esp = { ...(u.espressoDetails ?? { totalYield: 36, brewTime: 28, maxPressure: 9 }) };
+          if (result.espressoYield)       esp.totalYield  = result.espressoYield!;
+          if (result.espressoBrewTime)    esp.brewTime    = result.espressoBrewTime!;
+          if (result.espressoMaxPressure) esp.maxPressure = result.espressoMaxPressure!;
+          u.espressoDetails = esp;
+        }
+        return u;
+      });
+      setUrlInput('');
+    } catch (err: any) {
+      setUrlError(err.message || 'Could not import from URL.');
+    } finally {
+      setFetchingUrl(false);
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name) return;
@@ -238,16 +426,61 @@ export function RecipeForm() {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft size={14} /> Back
-        </Button>
-        <h1 className="font-display italic text-brew-text text-2xl leading-tight">
-          {isEdit ? 'Edit Recipe' : 'Add Recipe'}
-        </h1>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft size={14} /> Back
+          </Button>
+          <h1 className="font-display italic text-brew-text text-2xl leading-tight">
+            {isEdit ? 'Edit Recipe' : 'Add Recipe'}
+          </h1>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={handleVoiceFill}
+            disabled={voiceParsing}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+              voiceListening
+                ? 'bg-brew-negative/15 text-brew-negative border-brew-negative/40 animate-pulse'
+                : voiceParsing
+                ? 'bg-brew-surface text-brew-muted border-brew-border cursor-wait'
+                : 'bg-brew-card border-brew-border text-brew-muted hover:text-brew-text hover:border-brew-primary'
+            }`}
+          >
+            {voiceParsing
+              ? <><Loader2 size={14} className="animate-spin" /> Parsing…</>
+              : voiceListening
+              ? <><MicOff size={14} /> Stop & Parse</>
+              : <><Mic size={14} /> Voice Fill</>}
+          </button>
+          {(voiceListening || voiceInterim) && (
+            <p className="text-xs text-brew-faint max-w-xs text-right truncate">{voiceInterim || 'Listening…'}</p>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="w-full max-w-2xl flex flex-col gap-6">
+
+        {/* URL importer */}
+        <Card className="p-4 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Link size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-brew-faint" />
+              <input
+                className="w-full bg-brew-surface border border-brew-border rounded-lg pl-8 pr-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors"
+                placeholder="Paste a recipe URL to auto-fill (blog post, YouTube description…)"
+                value={urlInput}
+                onChange={(e) => { setUrlInput(e.target.value); setUrlError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlImport(); }}}
+              />
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={handleUrlImport} disabled={fetchingUrl || !urlInput.trim()}>
+              {fetchingUrl ? <><Loader2 size={13} className="animate-spin" /> Importing…</> : 'Import'}
+            </Button>
+          </div>
+          {urlError && <p className="text-xs text-brew-negative">{urlError}</p>}
+        </Card>
 
         {/* Identity */}
         <Card className="p-6 flex flex-col gap-4">
