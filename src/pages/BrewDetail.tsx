@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, Edit2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Trash2, Edit2, RefreshCw, GitCompare } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Button, Card, Badge, ScoreRing, SectionTitle } from '../components/ui';
 import {
@@ -73,6 +73,9 @@ export default function BrewDetail() {
           <ArrowLeft size={14} /> Back
         </Button>
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => navigate(`/compare?a=${brew.id}`)}>
+            <GitCompare size={14} /> Compare
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/brews/new?fromBrewId=${brew.id}`)}>
             <RefreshCw size={14} /> Brew Again
           </Button>

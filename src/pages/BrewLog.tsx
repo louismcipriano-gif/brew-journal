@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, BookOpen, Star } from 'lucide-react';
+import { Plus, BookOpen, Star, GitCompare } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Button, Card, Badge, ScoreRing, Select, EmptyState } from '../components/ui';
 import { calcBrewScore, formatDate, daysOffRoast, brewRatio } from '../utils';
@@ -169,8 +169,16 @@ export default function BrewLog() {
                     )}
                   </div>
                 </div>
-                <div className="text-xs text-brew-faint text-right flex-shrink-0 self-start pt-0.5">
-                  {formatDate(brew.brewDate)}
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-start">
+                  <span className="text-xs text-brew-faint">{formatDate(brew.brewDate)}</span>
+                  <button
+                    className="flex items-center gap-1 text-xs text-brew-muted hover:text-brew-primary transition-colors px-1.5 py-0.5 rounded border border-brew-border hover:border-brew-primary"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/compare?a=${brew.id}`); }}
+                    title="Compare this brew"
+                  >
+                    <GitCompare size={11} />
+                    Compare
+                  </button>
                 </div>
               </Card>
             );

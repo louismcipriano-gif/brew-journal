@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked, Settings2, Plus, Droplets } from 'lucide-react';
+import { LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked, Settings2, Plus, Droplets, GitCompare } from 'lucide-react';
 import { Button } from './ui';
 
 const nav = [
@@ -9,6 +9,7 @@ const nav = [
   { to: '/brews', icon: BookOpen, label: 'Brew Journal' },
   { to: '/recipes', icon: BookMarked, label: 'Recipes' },
   { to: '/water-recipes', icon: Droplets, label: 'Water' },
+  { to: '/compare', icon: GitCompare, label: 'Compare' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ];
 
