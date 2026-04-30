@@ -1,28 +1,29 @@
 import type { FlavorProfile } from '../types';
 
 export function calcBrewScore(fp: FlavorProfile): number {
-  // Inputs are on a 1-5 scale. Normalize positives to 0-10, negatives to a 0-5 penalty.
+  // Inputs on 1-5 scale. Output on 1-5 scale.
   const positiveAvg =
     (fp.acidity + fp.sweetness + fp.body + fp.florality + fp.clarity + fp.juiciness + fp.finish) / 7;
   const negativeAvg = (fp.astringency + fp.sourness) / 2;
-  const score = ((positiveAvg - 1) / 4) * 10 - ((negativeAvg - 1) / 4) * 5;
-  return Math.round(Math.max(0, Math.min(10, score)) * 10) / 10;
+  // positiveAvg 1-5 maps linearly to 1-5; negative subtracts up to 2 points
+  const score = (positiveAvg - 1) + 1 - ((negativeAvg - 1) / 4) * 2;
+  return Math.round(Math.max(1, Math.min(5, score)) * 10) / 10;
 }
 
 export function scoreColor(score: number): string {
-  if (score >= 8.5) return '#b8920a';
-  if (score >= 7) return '#2d6e4e';
-  if (score >= 5) return '#b87d28';
+  if (score >= 4.5) return '#b8920a';
+  if (score >= 3.5) return '#2d6e4e';
+  if (score >= 2.5) return '#b87d28';
   return '#9b3328';
 }
 
 export function scoreLabel(score: number): string {
-  if (score >= 9) return 'Exceptional';
-  if (score >= 8) return 'Excellent';
-  if (score >= 7) return 'Very Good';
-  if (score >= 6) return 'Good';
-  if (score >= 5) return 'Average';
-  if (score >= 4) return 'Below Average';
+  if (score >= 4.8) return 'Exceptional';
+  if (score >= 4.2) return 'Excellent';
+  if (score >= 3.7) return 'Very Good';
+  if (score >= 3.2) return 'Good';
+  if (score >= 2.5) return 'Average';
+  if (score >= 2.0) return 'Below Average';
   return 'Poor';
 }
 

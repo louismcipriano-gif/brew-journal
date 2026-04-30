@@ -108,6 +108,7 @@ const defaultFlavorProfile: FlavorProfile = {
   lessBitterness: false,
   lessAstringency: false,
   lessSourness: false,
+  lessMuddled: false,
   suggestedChange: '',
 };
 
@@ -409,6 +410,7 @@ export default function BrewForm() {
       if (v.lessBitterness != null) fp.lessBitterness = v.lessBitterness;
       if (v.lessAstringency!= null) fp.lessAstringency= v.lessAstringency;
       if (v.lessSourness   != null) fp.lessSourness   = v.lessSourness;
+      if ((v as any).lessMuddled != null) fp.lessMuddled = (v as any).lessMuddled;
       u.flavorProfile = fp;
 
       return u;
@@ -1302,7 +1304,7 @@ export default function BrewForm() {
           <div className="flex flex-col gap-2">
             <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Perceived Extraction</label>
             <div className="flex gap-2">
-              {(['Under', 'Balanced', 'Over'] as PerceivedExtraction[]).map((e) => (
+              {(['Under', 'Balanced', 'Over', 'Uneven', 'Unsure'] as PerceivedExtraction[]).map((e) => (
                 <button
                   key={e}
                   type="button"
@@ -1313,6 +1315,10 @@ export default function BrewForm() {
                         ? 'bg-brew-positive/20 border-brew-positive text-brew-positive'
                         : e === 'Over'
                         ? 'bg-brew-negative/20 border-brew-negative text-brew-negative'
+                        : e === 'Uneven'
+                        ? 'bg-purple-500/15 border-purple-400 text-purple-400'
+                        : e === 'Unsure'
+                        ? 'bg-brew-muted/15 border-brew-muted text-brew-muted'
                         : 'bg-brew-amber/20 border-brew-amber text-brew-amber'
                       : 'bg-transparent border-brew-border text-brew-faint hover:border-brew-muted'
                   }`}
@@ -1345,6 +1351,7 @@ export default function BrewForm() {
               <Chip label="Bitterness" checked={form.flavorProfile.lessBitterness} onChange={(v) => setFP('lessBitterness', v)} color="negative" />
               <Chip label="Astringency" checked={form.flavorProfile.lessAstringency} onChange={(v) => setFP('lessAstringency', v)} color="negative" />
               <Chip label="Sourness" checked={form.flavorProfile.lessSourness} onChange={(v) => setFP('lessSourness', v)} color="negative" />
+              <Chip label="Muddled Flavors" checked={form.flavorProfile.lessMuddled} onChange={(v) => setFP('lessMuddled', v)} color="negative" />
             </div>
           </div>
 

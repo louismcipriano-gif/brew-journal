@@ -154,6 +154,8 @@ export default function BrewLog() {
                           ? 'positive'
                           : brew.flavorProfile.perceivedExtraction === 'Over'
                           ? 'negative'
+                          : brew.flavorProfile.perceivedExtraction === 'Unsure'
+                          ? 'default'
                           : 'amber'
                       }
                     >

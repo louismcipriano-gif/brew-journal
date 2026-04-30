@@ -27,7 +27,7 @@ export type BrewMethod =
 
 export type PourHeightSpeed = 'Low' | 'Medium' | 'High' | 'Combination';
 
-export type PerceivedExtraction = 'Under' | 'Balanced' | 'Over';
+export type PerceivedExtraction = 'Under' | 'Balanced' | 'Over' | 'Uneven' | 'Unsure';
 
 export interface Coffee {
   id: string;
@@ -96,6 +96,7 @@ export interface FlavorProfile {
   lessBitterness: boolean;
   lessAstringency: boolean;
   lessSourness: boolean;
+  lessMuddled: boolean;
   suggestedChange: string;
 }
 

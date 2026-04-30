@@ -31,7 +31,14 @@ function migrateFP(fp: any): any {
 }
 
 function migrateBrews(brews: Brew[]): Brew[] {
-  return brews.map((b) => ({ ...b, flavorProfile: migrateFP(b.flavorProfile) }));
+  return brews.map((b) => {
+    const fp = migrateFP(b.flavorProfile);
+    // Rescale stored brewScore from 0-10 to 1-5 if needed
+    const score = b.brewScore != null && b.brewScore > 5
+      ? Math.max(1, Math.min(5, Math.round((b.brewScore / 10) * 4 + 1) * 10) / 10)
+      : b.brewScore;
+    return { ...b, flavorProfile: fp, brewScore: score };
+  });
 }
 
 const defaultData: AppData = { coffees: [], brews: [], recipes: [], waterRecipes: [] };

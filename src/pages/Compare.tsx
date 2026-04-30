@@ -111,7 +111,7 @@ const defaultFP = (): FlavorProfile => ({
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
   moreFlorality: false, moreBody: false, lessBitterness: false,
-  lessAstringency: false, lessSourness: false, suggestedChange: '',
+  lessAstringency: false, lessSourness: false, lessMuddled: false, suggestedChange: '',
 });
 
 const defaultPourOver = (): PourOverDetails => ({
@@ -471,6 +471,7 @@ function SlotForm({
     if (v.lessBitterness != null) onUpdateFP('lessBitterness', v.lessBitterness);
     if (v.lessAstringency!= null) onUpdateFP('lessAstringency', v.lessAstringency);
     if (v.lessSourness   != null) onUpdateFP('lessSourness',   v.lessSourness);
+    if ((v as any).lessMuddled != null) onUpdateFP('lessMuddled', (v as any).lessMuddled);
   }
 
   async function handleVoiceFill() {
@@ -760,12 +761,14 @@ function SlotForm({
             className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-xs text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary resize-none" />
         </div>
         <div className="flex gap-2 mt-1">
-          {(['Under', 'Balanced', 'Over'] as PerceivedExtraction[]).map((v) => (
+          {(['Under', 'Balanced', 'Over', 'Uneven', 'Unsure'] as PerceivedExtraction[]).map((v) => (
             <button key={v} type="button" onClick={() => onUpdateFP('perceivedExtraction', v)}
               className={`flex-1 py-1 rounded text-xs font-medium border transition-all ${
                 slot.flavorProfile.perceivedExtraction === v
                   ? v === 'Balanced' ? 'bg-brew-positive/20 border-brew-positive text-brew-positive'
                   : v === 'Over' ? 'bg-brew-negative/20 border-brew-negative text-brew-negative'
+                  : v === 'Uneven' ? 'bg-purple-500/15 border-purple-400 text-purple-400'
+                  : v === 'Unsure' ? 'bg-brew-muted/15 border-brew-muted text-brew-muted'
                   : 'bg-brew-primary/20 border-brew-primary text-brew-primary-light'
                   : 'border-brew-border text-brew-faint'
               }`}>

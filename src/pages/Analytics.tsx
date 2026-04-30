@@ -159,15 +159,12 @@ export default function Analytics() {
 
   // Extraction breakdown
   const extractionCounts = useMemo(() => {
-    const counts = { Under: 0, Balanced: 0, Over: 0 };
+    const counts: Record<string, number> = { Under: 0, Balanced: 0, Over: 0, Uneven: 0, Unsure: 0 };
     brewsWithScore.forEach((b) => {
-      counts[b.flavorProfile.perceivedExtraction]++;
+      const key = b.flavorProfile.perceivedExtraction;
+      counts[key] = (counts[key] ?? 0) + 1;
     });
-    return [
-      { name: 'Under', value: counts.Under },
-      { name: 'Balanced', value: counts.Balanced },
-      { name: 'Over', value: counts.Over },
-    ];
+    return Object.entries(counts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
   }, [brewsWithScore]);
 
   const methods = [...new Set(data.brews.map((b) => b.brewMethod))];
@@ -228,13 +225,13 @@ export default function Analytics() {
                 tick={{ fill: '#a8907c', fontSize: 10 }}
                 tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               />
-              <YAxis domain={[0, 10]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+              <YAxis domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
               <Tooltip
                 {...tooltipStyle}
                 labelFormatter={(v) => formatDate(v as string)}
                 formatter={tf((v: number) => [v.toFixed(1), 'Score'])}
               />
-              <ReferenceLine y={7} stroke="#2d6e4e" strokeDasharray="3 3" strokeOpacity={0.4} />
+              <ReferenceLine y={3.5} stroke="#2d6e4e" strokeDasharray="3 3" strokeOpacity={0.4} />
               <Line
                 type="monotone"
                 dataKey="score"
@@ -257,7 +254,7 @@ export default function Analytics() {
               <BarChart data={processByMethod} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
                 <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" />
                 <XAxis dataKey="method" tick={{ fill: '#a8907c', fontSize: 10 }} />
-                <YAxis domain={[0, 10]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+                <YAxis domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
                 <Tooltip
                   {...tooltipStyle}
                   formatter={tf((v: number, name: string) => [v.toFixed(2), name === 'avgScore' ? 'Avg Score' : name])}
@@ -291,7 +288,7 @@ export default function Analytics() {
               <BarChart data={brewMethodData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
                 <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" />
                 <XAxis dataKey="method" tick={{ fill: '#a8907c', fontSize: 10 }} />
-                <YAxis domain={[0, 10]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+                <YAxis domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
                 <Tooltip
                   {...tooltipStyle}
                   formatter={tf((v: number) => [v.toFixed(2), 'Avg Score'])}
@@ -324,7 +321,7 @@ export default function Analytics() {
                   type="number"
                   dataKey="score"
                   name="Score"
-                  domain={[0, 10]}
+                  domain={[1, 5]}
                   tick={{ fill: '#a8907c', fontSize: 10 }}
                   width={24}
                 />
@@ -360,7 +357,7 @@ export default function Analytics() {
                   type="number"
                   dataKey="score"
                   name="Score"
-                  domain={[0, 10]}
+                  domain={[1, 5]}
                   tick={{ fill: '#a8907c', fontSize: 10 }}
                   width={24}
                 />
@@ -406,7 +403,7 @@ export default function Analytics() {
                 margin={{ top: 5, right: 40, bottom: 5, left: 0 }}
               >
                 <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" horizontal={false} />
-                <XAxis type="number" domain={[0, 10]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+                <XAxis type="number" domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
                 <YAxis
                   type="category"
                   dataKey="name"
@@ -419,7 +416,7 @@ export default function Analytics() {
                 />
                 <Bar dataKey="avgScore" name="Avg Score" radius={[0, 4, 4, 0]}>
                   {topCoffees.map((entry, i) => (
-                    <Cell key={i} fill={entry.avgScore >= 7 ? '#2d6e4e' : entry.avgScore >= 5 ? '#5a3820' : '#9b3328'} />
+                    <Cell key={i} fill={entry.avgScore >= 3.5 ? '#2d6e4e' : entry.avgScore >= 2.5 ? '#5a3820' : '#9b3328'} />
                   ))}
                 </Bar>
               </BarChart>

@@ -222,11 +222,11 @@ export function Badge({ children, variant = 'default' }: BadgeProps) {
 export function ScoreRing({ score, size = 56 }: { score: number; size?: number }) {
   const radius = size / 2 - 5;
   const circumference = 2 * Math.PI * radius;
-  const filled = (score / 10) * circumference;
+  const filled = ((score - 1) / 4) * circumference;
   let color = '#9b3328';
-  if (score >= 8.5) color = '#b8920a';
-  else if (score >= 7) color = '#2d6e4e';
-  else if (score >= 5) color = '#b87d28';
+  if (score >= 4.5) color = '#b8920a';
+  else if (score >= 3.5) color = '#2d6e4e';
+  else if (score >= 2.5) color = '#b87d28';
 
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>

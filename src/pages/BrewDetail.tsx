@@ -63,6 +63,7 @@ export default function BrewDetail() {
     brew.flavorProfile.lessBitterness && 'Bitterness',
     brew.flavorProfile.lessAstringency && 'Astringency',
     brew.flavorProfile.lessSourness && 'Sourness',
+    brew.flavorProfile.lessMuddled && 'Muddled Flavors',
   ].filter(Boolean) as string[];
 
   return (
@@ -106,6 +107,8 @@ export default function BrewDetail() {
                   ? 'positive'
                   : brew.flavorProfile.perceivedExtraction === 'Over'
                   ? 'negative'
+                  : brew.flavorProfile.perceivedExtraction === 'Unsure'
+                  ? 'default'
                   : 'amber'
               }
             >
