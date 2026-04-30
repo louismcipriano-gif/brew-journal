@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Plus, X, Sparkles, Loader2, Trophy,
-  ToggleLeft, ToggleRight, GitCompare, FlaskConical,
+  ToggleLeft, ToggleRight, GitCompare, FlaskConical, Mic, MicOff,
 } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -16,6 +16,8 @@ import type {
   PourOverDetails, EspressoDetails, PourHeightSpeed, SavedRecipe,
 } from '../types';
 import { getApiKey } from './Settings';
+import { parseVoiceWithClaude } from '../utils/parseVoiceWithClaude';
+import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
 
 // ── Constants (mirrors BrewForm) ───────────────────────────────────────────────
 
@@ -361,6 +363,173 @@ function SlotForm({
   const isPourOver = slot.brewMethod === 'Pour Over' || slot.brewMethod === 'Immersion';
   const isEspresso = slot.brewMethod === 'Espresso';
 
+  // ── Voice fill ───────────────────────────────────────────────────────────────
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceParsing, setVoiceParsing] = useState(false);
+  const [voiceInterim, setVoiceInterim] = useState('');
+  const voiceRecRef = useRef<any>(null);
+  const voiceTranscriptRef = useRef('');
+
+  function findRecipeByName(spoken: string): SavedRecipe | undefined {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const n = norm(spoken);
+    return savedRecipes.find(r => norm(r.name) === n)
+      ?? savedRecipes.find(r => norm(r.name).includes(n) || n.includes(norm(r.name)))
+      ?? savedRecipes.find(r => {
+        const rw = norm(r.name).split(/\s+/);
+        const sw = n.split(/\s+/);
+        const overlap = rw.filter(w => sw.includes(w)).length;
+        return overlap / Math.max(rw.length, sw.length) >= 0.5;
+      });
+  }
+
+  function applyVoiceFields(v: VoiceBrewFields) {
+    // ── Brew setup ──────────────────────────────────────────────────────────
+    const setupPatch: Partial<SideBySideSlot> = {};
+    if (v.brewMethod) setupPatch.brewMethod = v.brewMethod as BrewMethod;
+    if (v.brewingDevice) {
+      const dev = v.brewingDevice;
+      const resolvedFilter = v.filter ?? FILTER_PRESELECT[dev] ?? slot.filter ?? '';
+      setupPatch.brewingDevice = dev;
+      if (v.filter) setupPatch.filter = v.filter;
+      else if (FILTER_PRESELECT[dev]) setupPatch.filter = FILTER_PRESELECT[dev];
+      if (!v.brewerShape && DEVICE_SHAPE[dev]) setupPatch.brewerShape = DEVICE_SHAPE[dev];
+      if (!v.bypass) setupPatch.bypass = resolveBypass(dev, resolvedFilter) ?? slot.bypass;
+    } else if (v.filter) {
+      setupPatch.filter = v.filter;
+      if (!v.bypass) setupPatch.bypass = resolveBypass(slot.brewingDevice, v.filter) ?? slot.bypass;
+    }
+    if (v.brewerShape) setupPatch.brewerShape = v.brewerShape as any;
+    if (v.bypass) setupPatch.bypass = v.bypass as any;
+    if (v.grinder) setupPatch.grinder = v.grinder;
+    if (v.grindSetting != null) setupPatch.grindSetting = v.grindSetting;
+    if (v.grindSize) {
+      setupPatch.grindSize = v.grindSize;
+    } else if (v.grinder || v.grindSetting != null) {
+      const resolved = resolveGrindSize(
+        v.grinder ?? slot.grinder,
+        v.grindSetting ?? slot.grindSetting,
+      );
+      if (resolved) setupPatch.grindSize = resolved;
+    }
+    if (v.coffeeDose) setupPatch.coffeeDose = v.coffeeDose;
+    if (v.waterAmount) setupPatch.waterAmount = v.waterAmount;
+    if (v.waterTempF) setupPatch.waterTempF = v.waterTempF;
+    if (v.waterPPM != null) setupPatch.waterPPM = v.waterPPM;
+    if (v.brewRecipeName) setupPatch.brewRecipeName = v.brewRecipeName;
+    if (v.brewRecipeDetails) setupPatch.brewRecipeDetails = v.brewRecipeDetails;
+    if (v.finalBrewWeight) setupPatch.finalBrewWeight = v.finalBrewWeight;
+    if (v.tds) setupPatch.tds = v.tds;
+    if (Object.keys(setupPatch).length) onUpdate(setupPatch);
+
+    // ── Pour over ───────────────────────────────────────────────────────────
+    const hasPO = v.pourStyle || v.melodrip != null || v.doubleBloom != null
+      || v.varyingPourSpeed != null || v.totalPours || v.bloomAmount
+      || v.bloomTime || v.totalBrewTime || v.pourHeight || v.pourSpeed
+      || v.agitation || v.pourSpeedMlS;
+    if (hasPO) {
+      if (v.pourStyle)               onUpdatePO('pourStyle', v.pourStyle);
+      if (v.pourHeight)              onUpdatePO('pourHeight', v.pourHeight);
+      if (v.pourSpeed)               onUpdatePO('pourSpeed', v.pourSpeed);
+      if (v.agitation)               onUpdatePO('agitation', v.agitation);
+      if (v.pourSpeedMlS)            onUpdatePO('pourSpeedMlS', v.pourSpeedMlS);
+      if (v.pourSpeedMinMlS)         onUpdatePO('pourSpeedMinMlS', v.pourSpeedMinMlS);
+      if (v.pourSpeedMaxMlS)         onUpdatePO('pourSpeedMaxMlS', v.pourSpeedMaxMlS);
+      if (v.melodrip != null)        onUpdatePO('melodrip', v.melodrip);
+      if (v.doubleBloom != null)     onUpdatePO('doubleBloom', v.doubleBloom);
+      if (v.varyingPourSpeed != null) onUpdatePO('varyingPourSpeed', v.varyingPourSpeed);
+      if (v.totalPours)              onUpdatePO('totalPours', v.totalPours);
+      if (v.bloomAmount)             onUpdatePO('bloomAmount', v.bloomAmount);
+      if (v.bloomTime)               onUpdatePO('bloomTime', v.bloomTime);
+      if (v.totalBrewTime)           onUpdatePO('totalBrewTime', v.totalBrewTime);
+    }
+
+    // ── Espresso ────────────────────────────────────────────────────────────
+    if (v.espressoYield)      onUpdateEsp('totalYield', v.espressoYield);
+    if (v.espressoBrewTime)   onUpdateEsp('brewTime', v.espressoBrewTime);
+    if (v.espressoMaxPressure) onUpdateEsp('maxPressure', v.espressoMaxPressure);
+
+    // ── Flavor ──────────────────────────────────────────────────────────────
+    const clamp = (n: number) => Math.max(0, Math.min(10, Math.round(n)));
+    if (v.acidity     != null) onUpdateFP('acidity',     clamp(v.acidity));
+    if (v.sweetness   != null) onUpdateFP('sweetness',   clamp(v.sweetness));
+    if (v.body        != null) onUpdateFP('body',         clamp(v.body));
+    if (v.florality   != null) onUpdateFP('florality',   clamp(v.florality));
+    if (v.clarity     != null) onUpdateFP('clarity',     clamp(v.clarity));
+    if (v.juiciness   != null) onUpdateFP('juiciness',   clamp(v.juiciness));
+    if (v.finish      != null) onUpdateFP('finish',       clamp(v.finish));
+    if (v.astringency != null) onUpdateFP('astringency', clamp(v.astringency));
+    if (v.sourness    != null) onUpdateFP('sourness',    clamp(v.sourness));
+    if (v.flavorNotes)         onUpdateFP('flavorNotes', v.flavorNotes);
+    if (v.perceivedExtraction) onUpdateFP('perceivedExtraction', v.perceivedExtraction);
+    if (v.suggestedChange)     onUpdateFP('suggestedChange', v.suggestedChange);
+    if (v.moreAcidity    != null) onUpdateFP('moreAcidity',    v.moreAcidity);
+    if (v.moreSweetness  != null) onUpdateFP('moreSweetness',  v.moreSweetness);
+    if (v.moreClarity    != null) onUpdateFP('moreClarity',    v.moreClarity);
+    if (v.moreFlorality  != null) onUpdateFP('moreFlorality',  v.moreFlorality);
+    if (v.moreBody       != null) onUpdateFP('moreBody',       v.moreBody);
+    if (v.lessBitterness != null) onUpdateFP('lessBitterness', v.lessBitterness);
+    if (v.lessAstringency!= null) onUpdateFP('lessAstringency', v.lessAstringency);
+    if (v.lessSourness   != null) onUpdateFP('lessSourness',   v.lessSourness);
+  }
+
+  async function handleVoiceFill() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert('Speech recognition not supported in this browser.\nUse Chrome on desktop or iOS Safari.');
+      return;
+    }
+    if (voiceListening) { voiceRecRef.current?.stop?.(); return; }
+
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    voiceTranscriptRef.current = '';
+
+    rec.onresult = (e: any) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) voiceTranscriptRef.current += t + ' ';
+        else interim = t;
+      }
+      setVoiceInterim(voiceTranscriptRef.current + interim);
+    };
+
+    rec.onend = async () => {
+      setVoiceListening(false);
+      setVoiceInterim('');
+      const transcript = voiceTranscriptRef.current.trim();
+      if (!transcript) return;
+      setVoiceParsing(true);
+      try {
+        const recipeNames = savedRecipes.map((r) => r.name);
+        const fields = await parseVoiceWithClaude(transcript, getApiKey() ?? undefined, recipeNames);
+        if (fields.brewRecipeName) {
+          const matched = findRecipeByName(fields.brewRecipeName);
+          if (matched) onUpdate(applyRecipeToSlot(matched));
+        }
+        applyVoiceFields(fields);
+      } catch (err: any) {
+        alert(`Voice parse failed: ${err.message || 'Check your connection and try again.'}`);
+      } finally {
+        setVoiceParsing(false);
+      }
+    };
+
+    rec.onerror = (e: any) => {
+      setVoiceListening(false);
+      setVoiceInterim('');
+      if (e.error === 'no-speech') return;
+      if (e.error !== 'aborted') alert(`Microphone error: ${e.error}`);
+    };
+
+    voiceRecRef.current = rec;
+    rec.start();
+    setVoiceListening(true);
+  }
+
   function handleDeviceChange(device: string) {
     const shape = DEVICE_SHAPE[device];
     const preFilter = FILTER_PRESELECT[device] ?? slot.filter;
@@ -390,6 +559,26 @@ function SlotForm({
       <div className="flex items-center justify-between">
         <span className="text-sm font-bold" style={{ color: SLOT_COLORS[slotIdx] }}>{SLOT_LABELS[slotIdx]}</span>
         <div className="flex gap-2 items-center">
+          {/* Voice Fill button */}
+          <button
+            type="button"
+            onClick={handleVoiceFill}
+            disabled={voiceParsing}
+            title={voiceListening ? 'Tap to stop recording' : 'Speak your brew setup and tasting notes'}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-all ${
+              voiceListening
+                ? 'bg-brew-negative/15 border-brew-negative text-brew-negative animate-pulse'
+                : voiceParsing
+                ? 'border-brew-border text-brew-faint cursor-wait'
+                : 'border-brew-border text-brew-muted hover:border-brew-primary hover:text-brew-primary'
+            }`}
+          >
+            {voiceParsing
+              ? <><Loader2 size={11} className="animate-spin" /> Parsing…</>
+              : voiceListening
+              ? <><MicOff size={11} /> Stop</>
+              : <><Mic size={11} /> Voice Fill</>}
+          </button>
           {slotIdx > 0 && (
             <button onClick={onCopyFromA}
               className="text-xs text-brew-faint hover:text-brew-muted transition-colors">
@@ -403,6 +592,13 @@ function SlotForm({
           )}
         </div>
       </div>
+
+      {/* Live transcript preview */}
+      {(voiceListening || voiceInterim) && (
+        <div className="rounded-lg bg-brew-primary/8 border border-brew-primary/20 px-3 py-2 text-xs text-brew-muted italic leading-relaxed">
+          {voiceInterim || <span className="text-brew-faint">Listening…</span>}
+        </div>
+      )}
 
       {/* Load Saved Recipe */}
       {savedRecipes.length > 0 && (
