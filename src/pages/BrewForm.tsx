@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp, Loader2, Repeat2, Layers } from 'lucide-react';
+import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp, Loader2, Repeat2, Layers, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Input, Select, Toggle, Slider, Chip, SectionTitle, ScoreRing, MicButton,
@@ -14,6 +14,8 @@ import type {
 } from '../types';
 import { parseVoiceWithClaudeStream } from '../utils/parseVoiceWithClaude';
 import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
+import { streamSuggestion, buildPreBrewPrompt, HAIKU_MODEL, SONNET_MODEL } from '../utils/aiSuggestions';
+import type { SuggestionModel } from '../utils/aiSuggestions';
 import { getApiKey } from './Settings';
 
 const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
@@ -156,6 +158,33 @@ function recipeToFormFields(r: SavedRecipe): Partial<BrewFormData> {
 }
 
 
+const INTENT_CHIPS = [
+  'Optimize acidity & clarity',
+  'Dial in sweetness',
+  'Balance the cup',
+  'Reduce funk / fermented notes',
+  'Maximize body & texture',
+  'First brew — give me a starting point',
+  'Test a new presentation',
+  'Improve extraction yield',
+];
+
+/** Render **bold** headers and plain lines from streamed markdown text */
+function renderSuggestion(text: string) {
+  return text.split('\n').map((line, i) => {
+    const header = line.match(/^\*\*(.+?)\*\*:?\s*$/);
+    if (header) {
+      return (
+        <p key={i} className="text-xs font-semibold uppercase tracking-wider text-brew-primary-light mt-4 mb-1 first:mt-0">
+          {header[1]}
+        </p>
+      );
+    }
+    if (!line.trim()) return <div key={i} className="h-1" />;
+    return <p key={i} className="text-sm text-brew-text leading-relaxed">{line}</p>;
+  });
+}
+
 export default function BrewForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -224,6 +253,14 @@ export default function BrewForm() {
   const [recipeSaveName, setRecipeSaveName] = useState('');
   const [recipeSaveSource, setRecipeSaveSource] = useState('');
   const [eyOverride, setEyOverride] = useState(false);
+
+  // Pre-brew intent state
+  const [showIntentCard, setShowIntentCard] = useState(false);
+  const [intentChips, setIntentChips] = useState<string[]>([]);
+  const [intentText, setIntentText] = useState('');
+  const [intentModel, setIntentModel] = useState<SuggestionModel>(HAIKU_MODEL);
+  const [intentResponse, setIntentResponse] = useState('');
+  const [intentStreaming, setIntentStreaming] = useState(false);
 
   // Voice fill state
   const [voiceListening, setVoiceListening] = useState(false);
@@ -441,6 +478,66 @@ export default function BrewForm() {
     const hasFlavor = v.acidity != null || v.sweetness != null || v.body != null
       || v.flavorNotes || v.perceivedExtraction || v.suggestedChange;
     if (hasFlavor) setShowAdvanced(true);
+  }
+
+  async function handleGetSuggestion() {
+    if (!selectedCoffee) return;
+    const intent = [
+      ...intentChips,
+      intentText.trim(),
+    ].filter(Boolean).join('; ');
+    if (!intent) return;
+
+    const brewHistory = data.brews
+      .filter((b) => b.coffeeId === form.coffeeId)
+      .sort((a, b) => new Date(b.brewDate).getTime() - new Date(a.brewDate).getTime())
+      .slice(0, 5)
+      .map((b) => ({
+        brewDate: b.brewDate,
+        brewingDevice: b.brewingDevice,
+        grindSetting: b.grindSetting,
+        coffeeDose: b.coffeeDose,
+        waterAmount: b.waterAmount,
+        waterTempF: b.waterTempF,
+        brewScore: b.brewScore,
+        perceivedExtraction: b.flavorProfile?.perceivedExtraction,
+        flavorNotes: b.flavorProfile?.flavorNotes,
+        acidity: b.flavorProfile?.acidity,
+        sweetness: b.flavorProfile?.sweetness,
+        clarity: b.flavorProfile?.clarity,
+        body: b.flavorProfile?.body,
+      }));
+
+    const prompt = buildPreBrewPrompt(
+      {
+        roaster: selectedCoffee.roaster,
+        coffeeName: selectedCoffee.coffeeName,
+        countryOrigin: selectedCoffee.countryOrigin,
+        region: selectedCoffee.region,
+        processingMethod: selectedCoffee.processingMethod,
+        roastLevel: selectedCoffee.roastLevel,
+        varietal: selectedCoffee.varietal,
+        elevation: selectedCoffee.elevation,
+        tastingNotes: selectedCoffee.tastingNotes,
+      },
+      intent,
+      brewHistory,
+    );
+
+    setIntentResponse('');
+    setIntentStreaming(true);
+    try {
+      await streamSuggestion(
+        prompt,
+        intentModel,
+        (delta) => setIntentResponse((prev) => prev + delta),
+        getApiKey() ?? undefined,
+      );
+    } catch (err: any) {
+      setIntentResponse(`Error: ${err.message || 'Something went wrong. Check your API key.'}`);
+    } finally {
+      setIntentStreaming(false);
+    }
   }
 
   async function handleVoiceFill() {
@@ -763,6 +860,127 @@ export default function BrewForm() {
             </div>
           )}
         </Card>
+
+        {/* ── Pre-Brew Intent ──────────────────────────────── */}
+        {selectedCoffee && (
+          <Card className="p-5 flex flex-col gap-0">
+            {/* Header — always visible */}
+            <button
+              type="button"
+              onClick={() => setShowIntentCard((v) => !v)}
+              className="flex items-center justify-between w-full"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-brew-primary-light" />
+                <span className="text-sm font-medium text-brew-text">Pre-Brew Intent</span>
+                <span className="text-xs text-brew-faint ml-1">· AI suggestion</span>
+              </div>
+              {showIntentCard ? <ChevronUp size={15} className="text-brew-faint" /> : <ChevronDown size={15} className="text-brew-faint" />}
+            </button>
+
+            {showIntentCard && (
+              <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-brew-border">
+
+                {/* Intent chips */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">What are you optimizing for?</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {INTENT_CHIPS.map((chip) => {
+                      const active = intentChips.includes(chip);
+                      return (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setIntentChips((prev) =>
+                            active ? prev.filter((c) => c !== chip) : [...prev, chip]
+                          )}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            active
+                              ? 'bg-brew-primary/15 border-brew-primary text-brew-primary-light'
+                              : 'bg-transparent border-brew-border text-brew-faint hover:border-brew-muted'
+                          }`}
+                        >
+                          {active ? '✓ ' : ''}{chip}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Free text input */}
+                <textarea
+                  className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors resize-none"
+                  rows={2}
+                  placeholder="Or describe your intent… e.g. 'want more sweetness, last brew was too sharp'"
+                  value={intentText}
+                  onChange={(e) => setIntentText(e.target.value)}
+                />
+
+                {/* Model toggle + Ask button */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex rounded-lg border border-brew-border overflow-hidden text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setIntentModel(HAIKU_MODEL)}
+                      className={`px-3 py-1.5 transition-colors ${
+                        intentModel === HAIKU_MODEL
+                          ? 'bg-brew-primary text-brew-bg'
+                          : 'bg-brew-surface text-brew-muted hover:text-brew-text'
+                      }`}
+                    >
+                      Haiku · Fast
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIntentModel(SONNET_MODEL)}
+                      className={`px-3 py-1.5 border-l border-brew-border transition-colors ${
+                        intentModel === SONNET_MODEL
+                          ? 'bg-brew-primary text-brew-bg'
+                          : 'bg-brew-surface text-brew-muted hover:text-brew-text'
+                      }`}
+                    >
+                      Sonnet · Deep
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGetSuggestion}
+                    disabled={intentStreaming || (intentChips.length === 0 && !intentText.trim())}
+                    className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      intentStreaming || (intentChips.length === 0 && !intentText.trim())
+                        ? 'bg-brew-surface text-brew-faint border-brew-border cursor-default'
+                        : 'bg-brew-primary text-brew-bg border-brew-primary hover:bg-brew-primary-light'
+                    }`}
+                  >
+                    {intentStreaming
+                      ? <><Loader2 size={12} className="animate-spin" /> Getting suggestion…</>
+                      : <><Sparkles size={12} /> Get Suggestion</>
+                    }
+                  </button>
+                  {intentResponse && !intentStreaming && (
+                    <button
+                      type="button"
+                      onClick={() => { setIntentResponse(''); setIntentChips([]); setIntentText(''); }}
+                      className="text-xs text-brew-faint hover:text-brew-muted transition-colors ml-auto"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Streaming response */}
+                {(intentResponse || intentStreaming) && (
+                  <div className="p-4 bg-brew-surface rounded-xl border border-brew-border">
+                    {renderSuggestion(intentResponse)}
+                    {intentStreaming && (
+                      <span className="inline-block w-1.5 h-4 bg-brew-primary-light ml-0.5 animate-pulse rounded-sm align-middle" />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* ── Apply Saved Recipe ───────────────────────────── */}
         {data.recipes.length > 0 && (
