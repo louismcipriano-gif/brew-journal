@@ -5,7 +5,7 @@
  */
 
 export const HAIKU_MODEL  = 'claude-haiku-4-5-20251001';
-export const SONNET_MODEL = 'claude-sonnet-4-5-20251029';
+export const SONNET_MODEL = 'claude-sonnet-4-5-20251029'; // update if model unavailable
 
 export type SuggestionModel = typeof HAIKU_MODEL | typeof SONNET_MODEL;
 
