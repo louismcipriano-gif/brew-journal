@@ -49,6 +49,9 @@ export interface Coffee {
   coffeeStyle?: CoffeeStyle[];
   isResting?: boolean;
   isFinished?: boolean;
+  isFreezing?: boolean;
+  freezeStart?: string;
+  freezeStop?: string;
   isFavorite?: boolean;
   createdAt: string;
 }
@@ -197,6 +200,8 @@ export interface WaterRecipe {
   apaxTonik?: number;
   apaxJamm?: number;
   apaxLylac?: number;
+  apaxApril?: number;
+  apaxKonflux?: number;
   productsUsed: WaterProduct[];
   notes: string;
   createdAt: string;

@@ -21,9 +21,11 @@ const MINERAL_FIELDS: { key: WRFormKey; label: string }[] = [
 ];
 
 const APAX_FIELDS: { key: WRFormKey; label: string }[] = [
-  { key: 'apaxTonik',  label: 'TONIK' },
-  { key: 'apaxJamm',   label: 'JAMM' },
-  { key: 'apaxLylac',  label: 'LYLAC' },
+  { key: 'apaxTonik',   label: 'TONIK' },
+  { key: 'apaxJamm',    label: 'JAMM' },
+  { key: 'apaxLylac',   label: 'LYLAC' },
+  { key: 'apaxApril',   label: 'APRIL' },
+  { key: 'apaxKonflux', label: 'KONFLUX' },
 ];
 
 const blank: Omit<WaterRecipe, 'id' | 'createdAt'> = {
@@ -38,6 +40,8 @@ const blank: Omit<WaterRecipe, 'id' | 'createdAt'> = {
   apaxTonik: undefined,
   apaxJamm: undefined,
   apaxLylac: undefined,
+  apaxApril: undefined,
+  apaxKonflux: undefined,
   productsUsed: [],
   notes: '',
 };
@@ -65,6 +69,8 @@ export function WaterRecipeForm() {
           apaxTonik: existing.apaxTonik,
           apaxJamm: existing.apaxJamm,
           apaxLylac: existing.apaxLylac,
+          apaxApril: existing.apaxApril,
+          apaxKonflux: existing.apaxKonflux,
           productsUsed: existing.productsUsed ?? [],
           notes: existing.notes ?? '',
         }
@@ -172,7 +178,7 @@ export function WaterRecipeForm() {
 
         <Card className="p-6 flex flex-col gap-4">
           <SectionTitle>Apax Concentrates</SectionTitle>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
             {APAX_FIELDS.map(({ key, label }) => (
               <div key={key} className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">{label}</label>

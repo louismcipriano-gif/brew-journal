@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, ArrowLeft, Trash2, Edit2, BookMarked, Zap, Copy, Mic, MicOff, Loader2, Link } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Badge, Input, Select, Toggle, EmptyState, SectionTitle, MicButton,
 } from '../components/ui';
-import { brewRatio, bloomRatio, espressoRatio, fToC, formatDate } from '../utils';
+import { brewRatio, bloomRatio, espressoRatio, fToC, formatDate, calcBrewScore, avg, groupBy } from '../utils';
 import type {
   SavedRecipe, BrewMethod, PourOverDetails, EspressoDetails,
   PourHeightSpeed, RecipeAccentuates, GrinderEntry,
@@ -936,7 +936,32 @@ export function RecipeDetail() {
     );
   }
 
-  const timesUsed = data.brews.filter((b) => b.brewRecipeName === recipe.name).length;
+  const recipeBrews = data.brews.filter((b) => b.brewRecipeName === recipe.name);
+  const timesUsed = recipeBrews.length;
+
+  // Performance breakdown by coffee attributes
+  const coffeePerformance = useMemo(() => {
+    if (recipeBrews.length < 2) return null;
+
+    const toRows = (grouped: Record<string, typeof recipeBrews>) =>
+      Object.entries(grouped)
+        .filter(([k]) => k && k !== 'Unknown' && k !== 'undefined')
+        .map(([label, brews]) => ({
+          label,
+          avgScore: parseFloat(avg(brews.map((b) => calcBrewScore(b.flavorProfile))).toFixed(2)),
+          count: brews.length,
+        }))
+        .sort((a, b) => b.avgScore - a.avgScore);
+
+    const byProcess = toRows(groupBy(recipeBrews, (b) => b.coffeeProcessingMethod ?? 'Unknown'));
+    const byOrigin  = toRows(groupBy(recipeBrews, (b) => b.coffeeOrigin  ?? 'Unknown'));
+    const byRoast   = toRows(groupBy(recipeBrews, (b) => b.coffeeRoastLevel ?? 'Unknown'));
+
+    const hasMultiple = (rows: typeof byProcess) => rows.length > 1;
+    if (!hasMultiple(byProcess) && !hasMultiple(byOrigin) && !hasMultiple(byRoast)) return null;
+
+    return { byProcess, byOrigin, byRoast };
+  }, [recipeBrews]);
 
   function handleDelete() {
     if (confirm(`Delete "${recipe!.name}"? This cannot be undone.`)) {
@@ -1107,6 +1132,129 @@ export function RecipeDetail() {
         <Card className="p-5">
           <SectionTitle>Recipe Steps & Notes</SectionTitle>
           <p className="text-brew-text text-sm whitespace-pre-wrap leading-relaxed">{recipe.recipeDetails}</p>
+        </Card>
+      )}
+
+      {/* Recipe performance across coffees */}
+      {coffeePerformance && (
+        <Card className="p-5 flex flex-col gap-5">
+          <div>
+            <SectionTitle>Performance Across Coffees</SectionTitle>
+            <p className="text-xs text-brew-faint mt-1">
+              How this recipe performs with different coffees — based on {timesUsed} logged brews.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* By Processing */}
+            {coffeePerformance.byProcess.length > 1 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-brew-muted mb-2">By Processing</p>
+                <div className="flex flex-col gap-1.5">
+                  {coffeePerformance.byProcess.map((row, i) => (
+                    <div key={row.label} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className="text-xs text-brew-text truncate">{row.label}</span>
+                          <span className={`text-xs font-semibold flex-shrink-0 ${
+                            i === 0 ? 'text-brew-positive' : 'text-brew-muted'
+                          }`}>{row.avgScore}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-brew-border overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${i === 0 ? 'bg-brew-positive' : 'bg-brew-primary/40'}`}
+                            style={{ width: `${Math.round((row.avgScore / 5) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-xs text-brew-faint flex-shrink-0">{row.count}×</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* By Origin */}
+            {coffeePerformance.byOrigin.length > 1 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-brew-muted mb-2">By Origin</p>
+                <div className="flex flex-col gap-1.5">
+                  {coffeePerformance.byOrigin.map((row, i) => (
+                    <div key={row.label} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className="text-xs text-brew-text truncate">{row.label}</span>
+                          <span className={`text-xs font-semibold flex-shrink-0 ${
+                            i === 0 ? 'text-brew-positive' : 'text-brew-muted'
+                          }`}>{row.avgScore}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-brew-border overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${i === 0 ? 'bg-brew-positive' : 'bg-brew-primary/40'}`}
+                            style={{ width: `${Math.round((row.avgScore / 5) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-xs text-brew-faint flex-shrink-0">{row.count}×</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* By Roast Level */}
+            {coffeePerformance.byRoast.length > 1 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-brew-muted mb-2">By Roast</p>
+                <div className="flex flex-col gap-1.5">
+                  {coffeePerformance.byRoast.map((row, i) => (
+                    <div key={row.label} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className="text-xs text-brew-text truncate">{row.label}</span>
+                          <span className={`text-xs font-semibold flex-shrink-0 ${
+                            i === 0 ? 'text-brew-positive' : 'text-brew-muted'
+                          }`}>{row.avgScore}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-brew-border overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${i === 0 ? 'bg-brew-positive' : 'bg-brew-primary/40'}`}
+                            style={{ width: `${Math.round((row.avgScore / 5) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-xs text-brew-faint flex-shrink-0">{row.count}×</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Versatility summary */}
+          {(() => {
+            const allGroups = [
+              ...coffeePerformance.byProcess,
+              ...coffeePerformance.byOrigin,
+              ...coffeePerformance.byRoast,
+            ];
+            if (allGroups.length < 2) return null;
+            const scores = allGroups.map((g) => g.avgScore);
+            const spread = Math.max(...scores) - Math.min(...scores);
+            const isVersatile = spread < 0.5;
+            return (
+              <div className={`p-3 rounded-lg border text-xs ${
+                isVersatile
+                  ? 'bg-brew-positive/8 border-brew-positive/20 text-brew-positive'
+                  : 'bg-brew-amber/8 border-brew-amber/20 text-brew-amber'
+              }`}>
+                {isVersatile
+                  ? `Versatile recipe — consistent results across different coffee profiles (score spread: ${spread.toFixed(2)})`
+                  : `Specialized recipe — performs better with certain coffees (score spread: ${spread.toFixed(2)})`
+                }
+              </div>
+            );
+          })()}
         </Card>
       )}
     </div>

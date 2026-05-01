@@ -157,6 +157,36 @@ export default function Analytics() {
       .slice(0, 8);
   }, [data.brews, getCoffee]);
 
+  // Apax Labs analytics
+  const apaxAnalytics = useMemo(() => {
+    const withApax = data.brews.filter((b) => b.apaxDropsUsed);
+    if (withApax.length === 0) return null;
+    const withoutApax = data.brews.filter((b) => !b.apaxDropsUsed);
+    const avgWithApax = parseFloat(avg(withApax.map((b) => calcBrewScore(b.flavorProfile))).toFixed(2));
+    const avgWithoutApax = withoutApax.length
+      ? parseFloat(avg(withoutApax.map((b) => calcBrewScore(b.flavorProfile))).toFixed(2))
+      : null;
+
+    const drops = ['tonik', 'jamm', 'lylac', 'april', 'konflux'] as const;
+    const byDrop = drops.map((drop) => {
+      const brewsWithDrop = withApax.filter((b) => (b.apaxDrops?.[drop] ?? 0) > 0);
+      if (brewsWithDrop.length === 0) return null;
+      return {
+        drop: drop.charAt(0).toUpperCase() + drop.slice(1),
+        avgScore: parseFloat(avg(brewsWithDrop.map((b) => calcBrewScore(b.flavorProfile))).toFixed(2)),
+        count: brewsWithDrop.length,
+        avgDose: parseFloat(avg(brewsWithDrop.map((b) => b.apaxDrops?.[drop] ?? 0)).toFixed(1)),
+      };
+    }).filter(Boolean) as { drop: string; avgScore: number; count: number; avgDose: number }[];
+
+    const comparison = [
+      { label: 'With Apax', avgScore: avgWithApax, count: withApax.length },
+      ...(avgWithoutApax !== null ? [{ label: 'Without Apax', avgScore: avgWithoutApax, count: withoutApax.length }] : []),
+    ];
+
+    return { comparison, byDrop, withApaxCount: withApax.length };
+  }, [data.brews]);
+
   // Extraction breakdown
   const extractionCounts = useMemo(() => {
     const counts: Record<string, number> = { Under: 0, Balanced: 0, Over: 0, Uneven: 0, Unsure: 0 };
@@ -453,6 +483,74 @@ export default function Analytics() {
           </div>
         </div>
       </ChartCard>
+
+      {/* Apax Labs Analytics */}
+      {apaxAnalytics && (
+        <div className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Apax vs No Apax comparison */}
+            <ChartCard title="Apax Labs: Avg Score Comparison">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={apaxAnalytics.comparison} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                  <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" />
+                  <XAxis dataKey="label" tick={{ fill: '#a8907c', fontSize: 11 }} />
+                  <YAxis domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+                  <Tooltip
+                    {...tooltipStyle}
+                    formatter={tf((v: number, name: string) => [v.toFixed(2), name === 'avgScore' ? 'Avg Score' : name])}
+                  />
+                  <Bar dataKey="avgScore" name="Avg Score" radius={[4, 4, 0, 0]}>
+                    {apaxAnalytics.comparison.map((entry, i) => (
+                      <Cell key={i} fill={entry.label === 'With Apax' ? '#2d6e4e' : '#a8907c'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="mt-2 flex gap-3 text-xs text-brew-faint">
+                {apaxAnalytics.comparison.map((e) => (
+                  <span key={e.label}>{e.label}: <strong className="text-brew-text">{e.count} brews</strong></span>
+                ))}
+              </div>
+            </ChartCard>
+
+            {/* By drop type */}
+            {apaxAnalytics.byDrop.length > 0 && (
+              <ChartCard title="Score by Apax Drop">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={apaxAnalytics.byDrop} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                    <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" />
+                    <XAxis dataKey="drop" tick={{ fill: '#a8907c', fontSize: 11 }} />
+                    <YAxis domain={[1, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+                    <Tooltip
+                      {...tooltipStyle}
+                      formatter={tf((v: number, name: string) => [
+                        name === 'avgScore' ? v.toFixed(2) : `${v} ml avg`,
+                        name === 'avgScore' ? 'Avg Score' : 'Avg Dose',
+                      ])}
+                    />
+                    <Bar dataKey="avgScore" name="avgScore" radius={[4, 4, 0, 0]}>
+                      {apaxAnalytics.byDrop.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {apaxAnalytics.byDrop.map((d) => (
+                    <div key={d.drop} className="flex items-center justify-between text-xs p-2 bg-brew-surface rounded-lg">
+                      <span className="text-brew-muted font-medium">{d.drop}</span>
+                      <div className="flex flex-col items-end text-brew-faint">
+                        <span>{d.count} brews</span>
+                        <span>{d.avgDose} ml avg</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ChartCard>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Flavor Attribute Trends by Processing */}
       {processByMethod.length > 1 && (

@@ -54,7 +54,15 @@ const server = http.createServer(async (req, res) => {
       };
 
       const proxyReq = https.request(options, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode, { 'content-type': 'application/json' });
+        const ct = proxyRes.headers['content-type'] || 'application/json';
+        const headers = { 'content-type': ct };
+        // SSE streams need these headers so the browser doesn't buffer
+        if (ct.includes('event-stream')) {
+          headers['cache-control'] = 'no-cache';
+          headers['connection']    = 'keep-alive';
+          headers['x-accel-buffering'] = 'no'; // disables nginx buffering if present
+        }
+        res.writeHead(proxyRes.statusCode, headers);
         proxyRes.pipe(res);
       });
       proxyReq.on('error', (e) => {

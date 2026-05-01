@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp, Loader2, Repeat2, Layers } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Input, Select, Toggle, Slider, Chip, SectionTitle, ScoreRing, MicButton,
 } from '../components/ui';
 import {
-  calcBrewScore, calcEY, fToC, daysOffRoast, brewRatio, bloomRatio, espressoRatio,
+  calcBrewScore, calcEY, fToC, daysOffRoast, brewRatio, bloomRatio, espressoRatio, formatDate,
 } from '../utils';
 import type {
   Brew, BrewMethod, PourOverDetails, EspressoDetails, FlavorProfile,
   PourHeightSpeed, PerceivedExtraction, SavedRecipe,
 } from '../types';
-import { parseVoiceWithClaude } from '../utils/parseVoiceWithClaude';
+import { parseVoiceWithClaudeStream } from '../utils/parseVoiceWithClaude';
 import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
 import { getApiKey } from './Settings';
 
@@ -169,7 +169,7 @@ export default function BrewForm() {
   const cloneBrew = fromBrewId ? data.brews.find((b) => b.id === fromBrewId) : undefined;
   const initialRecipe = preselectedRecipeId ? getRecipe(preselectedRecipeId) : undefined;
 
-  const [showAdvanced, setShowAdvanced] = useState(isEdit);
+  const [showAdvanced, setShowAdvanced] = useState(isEdit || !!cloneBrew);
 
   const [form, setForm] = useState<BrewFormData>(() => {
     // Edit mode: pre-fill from existing brew
@@ -225,6 +225,8 @@ export default function BrewForm() {
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceParsing, setVoiceParsing] = useState(false);
   const [voiceInterim, setVoiceInterim] = useState('');
+  const [voiceAdditive, setVoiceAdditive] = useState(false);
+  const [voiceFilledFields, setVoiceFilledFields] = useState<string[]>([]);
   const voiceRecRef = useRef<any>(null);
   const voiceTranscriptRef = useRef('');
 
@@ -309,9 +311,12 @@ export default function BrewForm() {
     }));
   }
 
-  function applyVoiceFields(v: VoiceBrewFields) {
+  function applyVoiceFields(v: VoiceBrewFields, additive = false) {
     setForm((f) => {
       let u = { ...f };
+
+      // Brew date (resolved relative phrase like "yesterday" or "last Sunday")
+      if (v.brewDate) u.brewDate = v.brewDate;
 
       // Brew method
       if (v.brewMethod) u.brewMethod = v.brewMethod as BrewMethod;
@@ -382,7 +387,11 @@ export default function BrewForm() {
       // Water recipe, quick score, recipe details & measurements
       if (v.waterRecipe)       u.waterRecipe       = v.waterRecipe;
       if (v.quickScore)        u.quickScore        = v.quickScore;
-      if (v.brewRecipeDetails) u.brewRecipeDetails = v.brewRecipeDetails;
+      if (v.brewRecipeDetails) {
+        u.brewRecipeDetails = (additive && f.brewRecipeDetails)
+          ? `${f.brewRecipeDetails}\n${v.brewRecipeDetails}`
+          : v.brewRecipeDetails;
+      }
       if (v.finalBrewWeight != null) u.finalBrewWeight = v.finalBrewWeight;
       if (v.tds             != null) u.tds             = v.tds;
       if (v.extractionYield != null) u.extractionYield = v.extractionYield;
@@ -399,9 +408,17 @@ export default function BrewForm() {
       if (v.finish      != null) fp.finish      = clamp(v.finish);
       if (v.astringency != null) fp.astringency = clamp(v.astringency);
       if (v.sourness    != null) fp.sourness    = clamp(v.sourness);
-      if (v.flavorNotes)         fp.flavorNotes = v.flavorNotes;
+      if (v.flavorNotes) {
+        fp.flavorNotes = (additive && f.flavorProfile.flavorNotes)
+          ? `${f.flavorProfile.flavorNotes} · ${v.flavorNotes}`
+          : v.flavorNotes;
+      }
       if (v.perceivedExtraction) fp.perceivedExtraction = v.perceivedExtraction;
-      if (v.suggestedChange)     fp.suggestedChange = v.suggestedChange;
+      if (v.suggestedChange) {
+        fp.suggestedChange = (additive && f.flavorProfile.suggestedChange)
+          ? `${f.flavorProfile.suggestedChange} · ${v.suggestedChange}`
+          : v.suggestedChange;
+      }
       if (v.moreAcidity    != null) fp.moreAcidity    = v.moreAcidity;
       if (v.moreSweetness  != null) fp.moreSweetness  = v.moreSweetness;
       if (v.moreClarity    != null) fp.moreClarity    = v.moreClarity;
@@ -458,16 +475,77 @@ export default function BrewForm() {
       if (!transcript) return;
 
       setVoiceParsing(true);
+      setVoiceFilledFields([]); // reset chips for this pass
+
+      // Helper: map a partial/full VoiceBrewFields object → human-readable chip names
+      function chipsFromFields(v: Partial<VoiceBrewFields>): string[] {
+        const chips: string[] = [];
+        if (v.brewDate)              chips.push('Brew Date');
+        if (v.brewMethod)            chips.push('Brew Method');
+        if (v.brewingDevice)         chips.push('Device');
+        if (v.grinder)               chips.push('Grinder');
+        if (v.grindSetting != null)  chips.push('Grind Setting');
+        if (v.grindSize)             chips.push('Grind Size');
+        if (v.filter)                chips.push('Filter');
+        if (v.coffeeDose)            chips.push('Dose');
+        if (v.waterAmount)           chips.push('Water');
+        if (v.waterTempF)            chips.push('Temp');
+        if (v.waterRecipe)           chips.push('Water Recipe');
+        if (v.brewRecipeName)        chips.push('Recipe');
+        if (v.brewRecipeDetails)     chips.push('Recipe Details');
+        if (v.quickScore)            chips.push('Quick Score');
+        const hasPO = v.totalPours || v.bloomAmount || v.bloomTime || v.totalBrewTime
+          || v.pourHeight || v.pourSpeed || v.melodrip != null;
+        if (hasPO)                   chips.push('Pour Details');
+        const hasFlavor = v.acidity != null || v.sweetness != null || v.body != null
+          || v.florality != null || v.clarity != null || v.juiciness != null || v.finish != null;
+        if (hasFlavor)               chips.push('Flavor Sliders');
+        if (v.flavorNotes)           chips.push('Flavor Notes');
+        if (v.perceivedExtraction)   chips.push('Extraction');
+        if (v.suggestedChange)       chips.push('Suggested Change');
+        return chips;
+      }
+
       try {
         const recipeNames = data.recipes.map((r) => r.name);
-        const fields = await parseVoiceWithClaude(transcript, getApiKey() ?? undefined, recipeNames);
+        const today = new Date().toISOString().split('T')[0];
+
+        // Stream the parse — onPartialFields fires as Claude emits each key:value,
+        // giving the user a live chip preview without modifying the form mid-stream.
+        const fields = await parseVoiceWithClaudeStream(
+          transcript,
+          (partial) => {
+            const incoming = chipsFromFields(partial);
+            if (incoming.length === 0) return;
+            setVoiceFilledFields((prev) => {
+              // Merge without duplicates, preserving order
+              const seen = new Set(prev);
+              const next = [...prev];
+              for (const c of incoming) {
+                if (!seen.has(c)) { seen.add(c); next.push(c); }
+              }
+              return next;
+            });
+          },
+          getApiKey() ?? undefined,
+          recipeNames,
+          today,
+        );
+
         // If a saved recipe was mentioned, apply it first so all its params load in,
         // then overlay any explicit adjustments spoken on top.
         if (fields.brewRecipeName) {
           const matched = findRecipeByName(fields.brewRecipeName);
           if (matched) applyRecipe(matched);
         }
-        applyVoiceFields(fields);
+        applyVoiceFields(fields, voiceAdditive);
+
+        // Final authoritative chip list from the complete parse result
+        const finalChips = chipsFromFields(fields);
+        if (finalChips.length > 0) {
+          setVoiceFilledFields(finalChips);
+          setTimeout(() => setVoiceFilledFields([]), 10000);
+        }
       } catch (err: any) {
         alert(`Voice parse failed: ${err.message || 'Check your connection and try again.'}`);
       } finally {
@@ -564,38 +642,79 @@ export default function BrewForm() {
           {isEdit ? 'Edit Brew' : 'Log a Brew'}
         </h1>
         <div className="ml-auto flex flex-col items-end gap-1.5 flex-shrink-0">
-          <button
-            type="button"
-            onClick={handleVoiceFill}
-            disabled={voiceParsing}
-            title={voiceListening ? 'Tap to stop and parse' : 'Speak your brew — everything fills automatically'}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              voiceListening
-                ? 'bg-brew-negative/15 text-brew-negative border-brew-negative/40 animate-pulse'
-                : voiceParsing
-                ? 'bg-brew-surface text-brew-muted border-brew-border cursor-default'
-                : 'bg-brew-surface text-brew-muted border-brew-border hover:text-brew-primary hover:border-brew-primary'
-            }`}
-          >
-            {voiceParsing
-              ? <><Loader2 size={13} className="animate-spin" /> Parsing…</>
-              : voiceListening
-              ? <><MicOff size={13} /> Stop &amp; Parse</>
-              : <><Mic size={13} /> Voice Fill</>
-            }
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Additive mode toggle */}
+            <button
+              type="button"
+              onClick={() => setVoiceAdditive((v) => !v)}
+              title={voiceAdditive ? 'Additive: text fields append on next pass' : 'Replace: each voice pass fully overwrites text fields'}
+              className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                voiceAdditive
+                  ? 'bg-brew-primary/15 text-brew-primary-light border-brew-primary/40'
+                  : 'bg-brew-surface text-brew-faint border-brew-border hover:border-brew-muted'
+              }`}
+            >
+              <Layers size={12} />
+              {voiceAdditive ? 'Additive' : 'Replace'}
+            </button>
+            <button
+              type="button"
+              onClick={handleVoiceFill}
+              disabled={voiceParsing}
+              title={voiceListening ? 'Tap to stop and parse' : 'Speak your brew — everything fills automatically'}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                voiceListening
+                  ? 'bg-brew-negative/15 text-brew-negative border-brew-negative/40 animate-pulse'
+                  : voiceParsing
+                  ? 'bg-brew-surface text-brew-muted border-brew-border cursor-default'
+                  : 'bg-brew-surface text-brew-muted border-brew-border hover:text-brew-primary hover:border-brew-primary'
+              }`}
+            >
+              {voiceParsing
+                ? <><Loader2 size={13} className="animate-spin" /> Parsing…</>
+                : voiceListening
+                ? <><MicOff size={13} /> Stop &amp; Parse</>
+                : <><Mic size={13} /> Voice Fill</>
+              }
+            </button>
+          </div>
           {voiceListening && voiceInterim && (
-            <p className="text-xs text-brew-faint max-w-[220px] text-right leading-snug italic">
+            <p className="text-xs text-brew-faint max-w-[260px] text-right leading-snug italic">
               "{voiceInterim}"
             </p>
           )}
-          {!voiceListening && !voiceParsing && (
+          {!voiceListening && !voiceParsing && voiceFilledFields.length === 0 && (
             <p className="text-xs text-brew-faint">Speak your full brew — tap again to stop</p>
+          )}
+          {/* Post-parse fields summary */}
+          {voiceFilledFields.length > 0 && !voiceListening && !voiceParsing && (
+            <div className="flex flex-wrap gap-1 justify-end max-w-[280px]">
+              <span className="text-xs text-brew-positive font-medium w-full text-right">✓ Filled:</span>
+              {voiceFilledFields.map((f) => (
+                <span key={f} className="text-xs px-1.5 py-0.5 bg-brew-positive/10 text-brew-positive rounded-full border border-brew-positive/20">{f}</span>
+              ))}
+            </div>
           )}
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full max-w-3xl">
+
+        {/* ── Brew Again banner ────────────────────────────── */}
+        {cloneBrew && !isEdit && (
+          <div className="flex items-start gap-3 p-4 bg-brew-primary/8 border border-brew-primary/20 rounded-xl">
+            <Repeat2 size={16} className="text-brew-primary-light flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-brew-text">Brew Again</p>
+              <p className="text-xs text-brew-faint mt-0.5">
+                Cloned from {formatDate(cloneBrew.brewDate)} · {cloneBrew.brewMethod} · {cloneBrew.brewingDevice || '—'}
+              </p>
+              <p className="text-xs text-brew-muted mt-1.5">
+                Parameters are pre-filled. You'll likely want to adjust <strong className="text-brew-text">Grind Setting</strong> and add fresh <strong className="text-brew-text">Tasting Notes</strong> after drinking.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── Coffee Selection ─────────────────────────────── */}
         <Card className="p-6 flex flex-col gap-4">

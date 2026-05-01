@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, ArrowLeft, Trash2, Edit2, Coffee, Camera, Loader2, Link, Star, MapPin, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Edit2, Coffee, Camera, ImagePlus, Loader2, Link, Star, MapPin, Calendar, CheckCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Badge, Input, Select, EmptyState, ScoreRing, SectionTitle, Toggle, MicButton,
@@ -20,12 +20,32 @@ const PROCESSING: ProcessingMethod[] = [
 const ROASTS: RoastLevel[] = ['Ultra Light', 'Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
 const COFFEE_STYLES: CoffeeStyle[] = ['Terroir-Focused', 'Fruity', 'Funky', 'Experimental'];
 
-type BrewingStatus = 'brewing' | 'resting' | 'finished';
+type BrewingStatus = 'brewing' | 'resting' | 'freezing' | 'finished';
 
 function getStatus(c: CoffeeType): BrewingStatus {
   if (c.isFinished) return 'finished';
+  if (c.isFreezing) return 'freezing';
   if (c.isResting) return 'resting';
   return 'brewing';
+}
+
+/** Days spent in freezer. If still freezing (no stop date), counts up to today. */
+function calcFreezeDays(freezeStart?: string, freezeStop?: string): number {
+  if (!freezeStart) return 0;
+  const start = new Date(freezeStart).getTime();
+  const end = freezeStop ? new Date(freezeStop).getTime() : Date.now();
+  return Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+}
+
+/** Days off roast excluding time spent in freezer. */
+function effectiveDaysOffRoast(
+  roastDate: string,
+  asOf: string,
+  freezeStart?: string,
+  freezeStop?: string,
+): number {
+  const total = daysOffRoast(roastDate, asOf);
+  return Math.max(0, total - calcFreezeDays(freezeStart, freezeStop));
 }
 
 const blankCoffee: Omit<CoffeeType, 'id' | 'createdAt'> = {
@@ -47,6 +67,9 @@ const blankCoffee: Omit<CoffeeType, 'id' | 'createdAt'> = {
   coffeeStyle: [],
   isResting: false,
   isFinished: false,
+  isFreezing: false,
+  freezeStart: undefined,
+  freezeStop: undefined,
   isFavorite: false,
 };
 
@@ -58,6 +81,7 @@ export function CoffeeForm() {
   const navigate = useNavigate();
   const { addCoffee, updateCoffee, getCoffee } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
   const [urlInput, setUrlInput] = useState('');
@@ -85,6 +109,9 @@ export function CoffeeForm() {
           coffeeStyle: existing.coffeeStyle ?? [],
           isResting: existing.isResting ?? false,
           isFinished: existing.isFinished ?? false,
+          isFreezing: existing.isFreezing ?? false,
+          freezeStart: existing.freezeStart,
+          freezeStop: existing.freezeStop,
           isFavorite: existing.isFavorite ?? false,
         }
       : blankCoffee,
@@ -99,14 +126,16 @@ export function CoffeeForm() {
       ...f,
       isResting: status === 'resting',
       isFinished: status === 'finished',
+      isFreezing: status === 'freezing',
     }));
   }
 
-  const currentStatus: BrewingStatus = form.isFinished ? 'finished' : form.isResting ? 'resting' : 'brewing';
+  const currentStatus: BrewingStatus = form.isFinished ? 'finished' : form.isFreezing ? 'freezing' : form.isResting ? 'resting' : 'brewing';
 
   const daysOff = form.roastDate && currentStatus !== 'finished'
-    ? daysOffRoast(form.roastDate, new Date().toISOString())
+    ? effectiveDaysOffRoast(form.roastDate, new Date().toISOString(), form.freezeStart, form.freezeStop)
     : null;
+  const freezeDays = calcFreezeDays(form.freezeStart, form.freezeStop);
 
   async function handleScanBag(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -220,6 +249,7 @@ export function CoffeeForm() {
           <div className="flex items-start justify-between gap-3">
             <SectionTitle>Origin & Identity</SectionTitle>
             <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              {/* Camera input — forces native camera on mobile */}
               <input
                 type="file"
                 accept="image/*"
@@ -228,16 +258,37 @@ export function CoffeeForm() {
                 className="hidden"
                 onChange={handleScanBag}
               />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => { setScanError(''); fileInputRef.current?.click(); }}
-                disabled={scanning}
-              >
-                {scanning ? <><Loader2 size={13} className="animate-spin" /> Scanning…</> : <><Camera size={13} /> Scan Bag</>}
-              </Button>
-              <span className="text-xs text-brew-faint">Photo auto-fills fields</span>
+              {/* Upload input — allows photo library / file picker */}
+              <input
+                type="file"
+                accept="image/*"
+                ref={uploadInputRef}
+                className="hidden"
+                onChange={handleScanBag}
+              />
+              <div className="flex gap-1.5">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { setScanError(''); fileInputRef.current?.click(); }}
+                  disabled={scanning}
+                  title="Take a photo with your camera"
+                >
+                  {scanning ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { setScanError(''); uploadInputRef.current?.click(); }}
+                  disabled={scanning}
+                  title="Upload a photo from your library or files"
+                >
+                  {scanning ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                </Button>
+              </div>
+              <span className="text-xs text-brew-faint">{scanning ? 'Scanning…' : 'Camera or upload a photo'}</span>
             </div>
           </div>
           <div className="flex gap-2 items-center p-3 bg-brew-surface rounded-lg border border-brew-border">
@@ -346,10 +397,11 @@ export function CoffeeForm() {
         {/* Brewing Status */}
         <Card className="p-6 flex flex-col gap-4">
           <SectionTitle>Brewing Status</SectionTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {([
               { value: 'brewing', label: 'Brewing Now' },
               { value: 'resting', label: 'Resting' },
+              { value: 'freezing', label: 'Freezing' },
               { value: 'finished', label: 'Finished' },
             ] as { value: BrewingStatus; label: string }[]).map(({ value, label }) => (
               <button
@@ -358,7 +410,9 @@ export function CoffeeForm() {
                 onClick={() => setStatus(value)}
                 className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all ${
                   currentStatus === value
-                    ? 'bg-brew-primary text-brew-bg border-brew-primary'
+                    ? value === 'freezing'
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-brew-primary text-brew-bg border-brew-primary'
                     : 'bg-brew-surface text-brew-muted border-brew-border hover:border-brew-primary'
                 }`}
               >
@@ -366,6 +420,32 @@ export function CoffeeForm() {
               </button>
             ))}
           </div>
+
+          {/* Freeze date fields — only shown when Freezing is selected */}
+          {currentStatus === 'freezing' && (
+            <div className="flex flex-col gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-lg">
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Freeze Start"
+                  type="date"
+                  value={form.freezeStart ?? ''}
+                  onChange={(e) => set('freezeStart', e.target.value || undefined)}
+                />
+                <Input
+                  label="Freeze Stop"
+                  type="date"
+                  value={form.freezeStop ?? ''}
+                  onChange={(e) => set('freezeStop', e.target.value || undefined)}
+                />
+              </div>
+              {form.freezeStart && (
+                <div className="text-xs text-blue-700 font-medium">
+                  ❄ Freeze time: <span className="font-bold">{freezeDays} day{freezeDays !== 1 ? 's' : ''}</span>
+                  {!form.freezeStop && ' (still freezing)'}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Days off roast — shown for Brewing Now and Resting */}
           {daysOff !== null && (
@@ -383,7 +463,7 @@ export function CoffeeForm() {
                       ? daysOff < 14 ? 'text-amber-500' : daysOff <= 28 ? 'text-green-600' : 'text-brew-muted'
                       : 'text-brew-text'
                   }`}>
-                    {daysOff}d
+                    {daysOff}d{freezeDays > 0 && <span className="text-blue-400 text-lg align-super">*</span>}
                   </div>
                   {currentStatus === 'resting' && (
                     <div className="text-xs text-brew-faint mt-0.5">
@@ -518,12 +598,17 @@ export function CoffeeDetail() {
   const scores = brews.map((b) => calcBrewScore(b.flavorProfile));
   const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
   const status = getStatus(coffee);
+  const freezeDays = calcFreezeDays(coffee.freezeStart, coffee.freezeStop);
   const daysOff = coffee.roastDate && status !== 'finished'
-    ? daysOffRoast(coffee.roastDate, new Date().toISOString())
+    ? effectiveDaysOffRoast(coffee.roastDate, new Date().toISOString(), coffee.freezeStart, coffee.freezeStop)
     : null;
 
   function setStatus(s: BrewingStatus) {
-    updateCoffee(id!, { isResting: s === 'resting', isFinished: s === 'finished' });
+    updateCoffee(id!, {
+      isResting: s === 'resting',
+      isFinished: s === 'finished',
+      isFreezing: s === 'freezing',
+    });
   }
 
   function handleDelete() {
@@ -536,11 +621,13 @@ export function CoffeeDetail() {
   const statusColors: Record<BrewingStatus, string> = {
     brewing: 'bg-green-100 text-green-700',
     resting: 'bg-amber-100 text-amber-700',
+    freezing: 'bg-blue-100 text-blue-700',
     finished: 'bg-brew-surface text-brew-muted',
   };
   const statusLabel: Record<BrewingStatus, string> = {
     brewing: 'Active',
     resting: 'Resting',
+    freezing: 'Freezing',
     finished: 'Finished',
   };
 
@@ -642,7 +729,7 @@ export function CoffeeDetail() {
                   ? daysOff < 14 ? 'text-amber-500' : daysOff <= 28 ? 'text-green-600' : 'text-brew-muted'
                   : 'text-brew-text'
               }`}>
-                {daysOff}d
+                {daysOff}d{freezeDays > 0 && <span className="text-blue-400 text-xl align-super">*</span>}
               </div>
               {status === 'resting' && (
                 <div className="text-xs text-brew-faint mt-0.5">
@@ -651,6 +738,11 @@ export function CoffeeDetail() {
                     : daysOff <= 28
                     ? 'In the sweet spot — ready to brew!'
                     : 'Past the 4-week peak window'}
+                </div>
+              )}
+              {freezeDays > 0 && (
+                <div className="text-xs text-blue-600 mt-1">
+                  ❄ {freezeDays}d in freezer not counted
                 </div>
               )}
             </div>
@@ -686,20 +778,28 @@ export function CoffeeDetail() {
           <Star size={12} className={coffee.isFavorite ? 'fill-amber-500 text-amber-500' : ''} />
           {coffee.isFavorite ? 'Favorited' : 'Add to Favorites'}
         </button>
-        {(['brewing', 'resting', 'finished'] as BrewingStatus[]).map((s) => (
+        {(['brewing', 'resting', 'freezing', 'finished'] as BrewingStatus[]).map((s) => (
           <button
             key={s}
             onClick={() => setStatus(s)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
               status === s
-                ? 'bg-brew-primary text-brew-bg border-brew-primary'
+                ? s === 'freezing'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-brew-primary text-brew-bg border-brew-primary'
                 : 'bg-brew-card border-brew-border text-brew-muted hover:border-brew-primary'
             }`}
           >
             {s === 'finished' && <CheckCircle size={12} />}
-            {s === 'brewing' ? 'Brewing Now' : s === 'resting' ? 'Resting' : 'Finished'}
+            {s === 'brewing' ? 'Brewing Now' : s === 'resting' ? 'Resting' : s === 'freezing' ? '❄ Freezing' : 'Finished'}
           </button>
         ))}
+        {/* Show freeze duration inline when freezing or was frozen */}
+        {(status === 'freezing' || (coffee.freezeStart && coffee.freezeStop)) && freezeDays > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700">
+            ❄ {freezeDays}d frozen{!coffee.freezeStop ? ' (ongoing)' : ''}
+          </span>
+        )}
       </div>
 
       {/* Meta grid */}
@@ -805,10 +905,11 @@ function CoffeeListCard({
 }) {
   const brews = allBrews.filter((b) => b.coffeeId === c.id);
   const scores = brews.map((b) => calcBrewScore(b.flavorProfile));
+  const freezeDays = calcFreezeDays(c.freezeStart, c.freezeStop);
   const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
   const status = getStatus(c);
   const daysOff = c.roastDate && status !== 'finished'
-    ? daysOffRoast(c.roastDate, new Date().toISOString())
+    ? effectiveDaysOffRoast(c.roastDate, new Date().toISOString(), c.freezeStart, c.freezeStop)
     : null;
 
   return (
@@ -855,14 +956,14 @@ function CoffeeListCard({
             <span className={`text-xs font-semibold flex-shrink-0 ${
               daysOff < 14 ? 'text-amber-500' : daysOff <= 28 ? 'text-green-600' : 'text-brew-muted'
             }`}>
-              {daysOff}d off roast
+              {daysOff}d{freezeDays > 0 && <span className="text-blue-400 align-super">*</span>} off roast
             </span>
           </div>
         )}
 
         {/* Active: subtle days count if roast date exists */}
         {status === 'brewing' && daysOff !== null && (
-          <p className="text-xs text-brew-faint mt-2">{daysOff}d off roast</p>
+          <p className="text-xs text-brew-faint mt-2">{daysOff}d{freezeDays > 0 && <span className="text-blue-400 align-super">*</span>} off roast</p>
         )}
       </div>
 
@@ -953,8 +1054,9 @@ export default function Coffees() {
 
   const brewing = searched.filter((c) => getStatus(c) === 'brewing');
   const resting = searched.filter((c) => getStatus(c) === 'resting');
+  const freezing = searched.filter((c) => getStatus(c) === 'freezing');
   const finished = searched.filter((c) => getStatus(c) === 'finished');
-  const hasResults = brewing.length + resting.length + finished.length > 0;
+  const hasResults = brewing.length + resting.length + freezing.length + finished.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -1011,6 +1113,14 @@ export default function Coffees() {
             label="Resting"
             dot="bg-amber-400"
             coffees={resting}
+            allBrews={data.brews}
+            navigate={navigate}
+            updateCoffee={updateCoffee}
+          />
+          <RosterSection
+            label="Freezing"
+            dot="bg-blue-400"
+            coffees={freezing}
             allBrews={data.brews}
             navigate={navigate}
             updateCoffee={updateCoffee}
