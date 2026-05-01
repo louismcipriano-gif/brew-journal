@@ -151,6 +151,10 @@ export interface Brew {
   coffeeRegion?: string;
   coffeeElevation?: string;
   coffeeRoastLevel?: string;
+  isDiluted?: boolean;
+  dilutionAmount?: number;
+  dilutionToCoffeeRatio?: number;    // dilutionAmount / coffeeDose
+  dilutionToBrewWaterRatio?: number; // dilutionAmount / waterAmount
   isGoToRecipe: boolean;
   createdAt: string;
 }
@@ -180,6 +184,8 @@ export interface SavedRecipe {
   accentuates?: RecipeAccentuates[];
   grindSize?: string;
   grinderEntries?: GrinderEntry[];
+  isDiluted?: boolean;
+  dilutionAmount?: number;
   pourOverDetails?: PourOverDetails;
   espressoDetails?: EspressoDetails;
   createdAt: string;

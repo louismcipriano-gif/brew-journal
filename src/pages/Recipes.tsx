@@ -89,6 +89,8 @@ const blankRecipe: Omit<SavedRecipe, 'id' | 'createdAt'> = {
   accentuates: [],
   grindSize: '',
   grinderEntries: [],
+  isDiluted: false,
+  dilutionAmount: undefined,
   pourOverDetails: {
     totalPours: 4,
     bloomAmount: 30,
@@ -131,6 +133,8 @@ export function RecipeForm() {
           accentuates: existing.accentuates ?? [],
           grindSize: existing.grindSize ?? '',
           grinderEntries: existing.grinderEntries ?? [],
+          isDiluted: existing.isDiluted ?? false,
+          dilutionAmount: existing.dilutionAmount,
           pourOverDetails: existing.pourOverDetails,
           espressoDetails: existing.espressoDetails,
         }
@@ -680,6 +684,37 @@ export function RecipeForm() {
               Brew Ratio: <span className="text-brew-primary font-semibold">{brewRatio(form.waterAmount, form.coffeeDose)}</span>
             </p>
           )}
+
+          {/* Dilution */}
+          <div className="flex flex-col gap-3 pt-2 border-t border-brew-border">
+            <Toggle
+              label="Diluted Brew"
+              checked={!!form.isDiluted}
+              onChange={(v) => set('isDiluted', v)}
+              description="Water added after brewing (bypass, iced, etc.)"
+            />
+            {form.isDiluted && (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Dilution Amount"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={form.dilutionAmount ?? ''}
+                  onChange={(e) => set('dilutionAmount', parseFloat(e.target.value) || undefined)}
+                  suffix="g"
+                  placeholder="e.g. 50"
+                />
+                {form.dilutionAmount && form.dilutionAmount > 0 && form.coffeeDose > 0 && form.waterAmount > 0 && (
+                  <div className="flex gap-4 text-xs text-brew-faint">
+                    <span>Dilution : Coffee <span className="text-brew-text font-semibold">{(form.dilutionAmount / form.coffeeDose).toFixed(2)}</span></span>
+                    <span>Dilution : Brew Water <span className="text-brew-text font-semibold">{(form.dilutionAmount / form.waterAmount).toFixed(2)}</span></span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <Input

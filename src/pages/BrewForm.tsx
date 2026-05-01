@@ -148,6 +148,8 @@ function recipeToFormFields(r: SavedRecipe): Partial<BrewFormData> {
     waterRecipe: r.waterRecipe,
     brewRecipeName: r.name,
     brewRecipeDetails: r.recipeDetails,
+    isDiluted: r.isDiluted ?? false,
+    dilutionAmount: r.dilutionAmount,
     pourOverDetails: r.pourOverDetails ?? (r.brewMethod === 'Pour Over' ? defaultPourOver : undefined),
     espressoDetails: r.espressoDetails ?? (r.brewMethod === 'Espresso' ? defaultEspresso : undefined),
   };
@@ -198,6 +200,8 @@ export default function BrewForm() {
       waterTempF: 205,
       waterPPM: 60,
       waterRecipe: '',
+      isDiluted: false,
+      dilutionAmount: undefined,
       apaxDropsUsed: false,
       apaxDrops: {},
       quickScore: undefined,
@@ -582,12 +586,21 @@ export default function BrewForm() {
       ? daysOffRoast(coffee.roastDate, form.brewDate)
       : undefined;
 
+    const dilutionToCoffeeRatio = form.isDiluted && form.dilutionAmount && form.coffeeDose > 0
+      ? Math.round((form.dilutionAmount / form.coffeeDose) * 100) / 100
+      : undefined;
+    const dilutionToBrewWaterRatio = form.isDiluted && form.dilutionAmount && form.waterAmount > 0
+      ? Math.round((form.dilutionAmount / form.waterAmount) * 100) / 100
+      : undefined;
+
     const payload = {
       ...form,
       isQuickLog: !showAdvanced,
       brewScore,
       brewRatio,
       bloomRatio,
+      dilutionToCoffeeRatio,
+      dilutionToBrewWaterRatio,
       daysOffRoast:            roastDays,
       coffeeProcessingMethod:  coffee?.processingMethod,
       coffeeVarietal:          coffee?.varietal,
@@ -1004,6 +1017,37 @@ export default function BrewForm() {
               <span className="text-brew-faint text-xs">({(form.waterAmount / form.coffeeDose).toFixed(1)}:1)</span>
             </div>
           )}
+
+          {/* Dilution */}
+          <div className="flex flex-col gap-3 pt-2 border-t border-brew-border">
+            <Toggle
+              label="Diluted Brew"
+              checked={!!form.isDiluted}
+              onChange={(v) => set('isDiluted', v)}
+              description="Water added after brewing (bypass, iced, etc.)"
+            />
+            {form.isDiluted && (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Dilution Amount"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={form.dilutionAmount ?? ''}
+                  onChange={(e) => set('dilutionAmount', parseFloat(e.target.value) || undefined)}
+                  suffix="g"
+                  placeholder="e.g. 50"
+                />
+                {form.dilutionAmount && form.dilutionAmount > 0 && form.coffeeDose > 0 && form.waterAmount > 0 && (
+                  <div className="flex gap-4 text-xs text-brew-faint">
+                    <span>Dilution : Coffee <span className="text-brew-text font-semibold">{(form.dilutionAmount / form.coffeeDose).toFixed(2)}</span></span>
+                    <span>Dilution : Brew Water <span className="text-brew-text font-semibold">{(form.dilutionAmount / form.waterAmount).toFixed(2)}</span></span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <Input
