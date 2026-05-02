@@ -98,6 +98,7 @@ export interface FlavorProfile {
   funkiness: number;
   vegetal: number;
   harsh: number;
+  thinness: number;
   flavorNotes: string;
   perceivedExtraction: PerceivedExtraction;
   moreAcidity: boolean;

@@ -117,12 +117,12 @@ const FLAVOR_DIMS = [
   { key: 'finish',    label: 'Finish'    },
 ] as const;
 
-const NEG_DIMS = ['astringency', 'sourness', 'funkiness', 'vegetal', 'harsh'] as const;
+const NEG_DIMS = ['astringency', 'sourness', 'funkiness', 'vegetal', 'harsh', 'thinness'] as const;
 
 const defaultFP = (): FlavorProfile => ({
   acidity: 3, sweetness: 3, body: 3, florality: 3,
   clarity: 3, juiciness: 3, finish: 3,
-  astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1,
+  astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1, thinness: 1,
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
   moreFlorality: false, moreBody: false, lessBitterness: false,
@@ -1107,7 +1107,7 @@ Coffee: ${b.coffee?.roaster ?? '?'} ${b.coffee?.coffeeName ?? '?'} | ${b.coffee?
 Device: ${b.device} | Grind: ${b.grindSetting} (${b.grindSize}) | ${b.dose}g : ${b.water}g | ${b.tempF}°F
 Bloom: ${b.bloom ?? '—'}g | Bloom time: ${b.bloomTime ?? '—'} min | Total brew time: ${b.brewTime ?? '—'} min
 Pour height: ${b.pourHeight ?? '—'} | Pour speed: ${b.pourSpeed ?? '—'} | Agitation: ${b.agitation ?? '—'}
-Flavor: Acidity ${b.fp.acidity} | Sweetness ${b.fp.sweetness} | Body ${b.fp.body} | Clarity ${b.fp.clarity} | Florality ${b.fp.florality} | Juiciness ${b.fp.juiciness} | Finish ${b.fp.finish} | Astringency ${b.fp.astringency} | Sourness ${b.fp.sourness} | Funkiness ${(b.fp as any).funkiness ?? 1} | Vegetal ${(b.fp as any).vegetal ?? 1} | Harsh ${(b.fp as any).harsh ?? 1}
+Flavor: Acidity ${b.fp.acidity} | Sweetness ${b.fp.sweetness} | Body ${b.fp.body} | Clarity ${b.fp.clarity} | Florality ${b.fp.florality} | Juiciness ${b.fp.juiciness} | Finish ${b.fp.finish} | Astringency ${b.fp.astringency} | Sourness ${b.fp.sourness} | Funkiness ${(b.fp as any).funkiness ?? 1} | Vegetal ${(b.fp as any).vegetal ?? 1} | Harsh ${(b.fp as any).harsh ?? 1} | Thin-ness ${(b.fp as any).thinness ?? 1}
 Notes: ${b.fp.flavorNotes || '—'} | Extraction: ${b.fp.perceivedExtraction}
 `).join('\n---\n');
 

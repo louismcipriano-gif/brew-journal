@@ -103,6 +103,7 @@ const defaultFlavorProfile: FlavorProfile = {
   funkiness: 1,
   vegetal: 1,
   harsh: 1,
+  thinness: 1,
   flavorNotes: '',
   perceivedExtraction: 'Balanced',
   moreAcidity: false,
@@ -1726,6 +1727,7 @@ export default function BrewForm() {
               <Slider label="Funkiness" value={form.flavorProfile.funkiness ?? 1} onChange={(v) => setFP('funkiness', v)} negative />
               <Slider label="Vegetal" value={form.flavorProfile.vegetal ?? 1} onChange={(v) => setFP('vegetal', v)} negative />
               <Slider label="Harsh" value={form.flavorProfile.harsh ?? 1} onChange={(v) => setFP('harsh', v)} negative />
+              <Slider label="Thin-ness" value={form.flavorProfile.thinness ?? 1} onChange={(v) => setFP('thinness', v)} negative />
             </div>
           </div>
 
