@@ -840,7 +840,7 @@ export default function Compare() {
   const [searchParams] = useSearchParams();
   const { data, addBrew, getCoffee } = useApp();
 
-  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [mode, setMode] = useState<'existing' | 'new'>('new');
   const [showDiffsOnly, setShowDiffsOnly] = useState(false);
   const [aiInsights, setAiInsights] = useState<Array<{ text: string; category: LearningCategory; comboTags: LearningCategory[] }>>([]);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -1203,7 +1203,7 @@ Return ONLY a JSON array, no markdown, no explanation:
           <h1 className="font-display italic text-brew-text text-2xl leading-tight">Compare Brews</h1>
         </div>
         <div className="flex rounded-lg border border-brew-border overflow-hidden text-sm">
-          {([['existing', GitCompare, 'Compare Existing'], ['new', FlaskConical, 'New Side by Side']] as const).map(([m, Icon, lbl]) => (
+          {([['new', FlaskConical, 'New Side by Side'], ['existing', GitCompare, 'Compare Existing']] as const).map(([m, Icon, lbl]) => (
             <button key={m} onClick={() => setMode(m as any)}
               className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${mode === m ? 'bg-brew-primary/15 text-brew-primary-light font-medium' : 'text-brew-muted hover:text-brew-text'}`}>
               <Icon size={13} />{lbl}
