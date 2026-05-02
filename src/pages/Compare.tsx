@@ -1159,6 +1159,43 @@ Return ONLY a JSON array, no markdown, no explanation:
         </div>
       </div>
 
+      {/* ── WHAT ARE YOU TESTING? ───────────────────────────────────── */}
+      <Card className="p-5 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-brew-primary-light" />
+          <p className="text-sm font-semibold text-brew-text">What are you testing?</p>
+          <span className="text-xs text-brew-faint">(optional — focuses the AI analysis)</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {COMPARE_INTENT_CHIPS.map(chip => {
+            const active = intentChips.includes(chip);
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setIntentChips(cs =>
+                  active ? cs.filter(c => c !== chip) : [...cs, chip]
+                )}
+                className={`px-2.5 py-1 rounded-full text-xs border transition-all ${
+                  active
+                    ? 'bg-brew-primary/20 border-brew-primary/60 text-brew-primary-light font-medium'
+                    : 'border-brew-border text-brew-faint hover:border-brew-muted hover:text-brew-muted'
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          type="text"
+          value={compareIntent}
+          onChange={e => setCompareIntent(e.target.value)}
+          placeholder="Or describe your focus... e.g. 'does higher agitation improve clarity on this natural?'"
+          className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary"
+        />
+      </Card>
+
       {/* ── EXISTING MODE ───────────────────────────────────────────── */}
       {mode === 'existing' && (
         <Card className="p-5 flex flex-col gap-4">
@@ -1248,46 +1285,16 @@ Return ONLY a JSON array, no markdown, no explanation:
 
           {/* AI Insights */}
           <Card className="p-5 flex flex-col gap-4 border-brew-primary/20 bg-brew-primary/5">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-brew-primary-light" />
-              <SectionTitle>AI Insights</SectionTitle>
-            </div>
-
-            {/* What are you testing? */}
-            <div className="flex flex-col gap-2">
-              <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">What are you testing? <span className="normal-case font-normal text-brew-faint">(optional — helps focus the analysis)</span></p>
-              <div className="flex flex-wrap gap-1.5">
-                {COMPARE_INTENT_CHIPS.map(chip => {
-                  const active = intentChips.includes(chip);
-                  return (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => setIntentChips(cs =>
-                        active ? cs.filter(c => c !== chip) : [...cs, chip]
-                      )}
-                      className={`px-2.5 py-1 rounded-full text-xs border transition-all ${
-                        active
-                          ? 'bg-brew-primary/20 border-brew-primary/60 text-brew-primary-light font-medium'
-                          : 'border-brew-border text-brew-faint hover:border-brew-muted hover:text-brew-muted'
-                      }`}
-                    >
-                      {chip}
-                    </button>
-                  );
-                })}
-              </div>
-              <input
-                type="text"
-                value={compareIntent}
-                onChange={e => setCompareIntent(e.target.value)}
-                placeholder="Or describe your focus... e.g. 'testing if higher agitation helps clarity on this natural'"
-                className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary"
-              />
-            </div>
-
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div />
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-brew-primary-light" />
+                <SectionTitle>AI Insights</SectionTitle>
+                {(intentChips.length > 0 || compareIntent.trim()) && (
+                  <span className="text-[10px] text-brew-primary bg-brew-primary/10 border border-brew-primary/20 rounded-full px-2 py-0.5 font-medium">
+                    Focused
+                  </span>
+                )}
+              </div>
               <Button variant="secondary" size="sm" onClick={generateInsights} disabled={loadingInsights}>
                 {loadingInsights ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : aiInsights.length > 0 ? 'Regenerate' : 'Generate Insights'}
               </Button>
