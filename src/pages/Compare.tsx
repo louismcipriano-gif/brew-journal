@@ -166,6 +166,8 @@ interface SideBySideSlot {
   espressoDetails: EspressoDetails;
   finalBrewWeight?: number;
   tds?: number;
+  isDiluted: boolean;
+  dilutionAmount?: number;
   // recipe
   brewRecipeName: string;
   brewRecipeDetails: string;
@@ -700,6 +702,21 @@ function SlotForm({
           <SlotInput label="Final Weight (g)" step={0.5} value={slot.finalBrewWeight ?? ''} onChange={(v) => onUpdate({ finalBrewWeight: v || undefined })} />
           <SlotInput label="TDS (%)" step={0.01} value={slot.tds ?? ''} onChange={(v) => onUpdate({ tds: v || undefined })} />
         </div>
+        {/* Dilution */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-brew-border">
+          <Toggle label="Diluted Brew" value={slot.isDiluted} onChange={(v) => onUpdate({ isDiluted: v, dilutionAmount: v ? slot.dilutionAmount : undefined })} />
+          {slot.isDiluted && (
+            <div className="flex flex-col gap-1.5">
+              <SlotInput label="Dilution Amount (g)" step={1} value={slot.dilutionAmount ?? ''} onChange={(v) => onUpdate({ dilutionAmount: v || undefined })} />
+              {slot.dilutionAmount && slot.dilutionAmount > 0 && slot.coffeeDose > 0 && slot.waterAmount > 0 && (
+                <div className="flex gap-4 text-xs text-brew-faint">
+                  <span>Dilution : Coffee <span className="text-brew-text font-semibold">{(slot.dilutionAmount / slot.coffeeDose).toFixed(2)}</span></span>
+                  <span>Dilution : Brew Water <span className="text-brew-text font-semibold">{(slot.dilutionAmount / slot.waterAmount).toFixed(2)}</span></span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Pour Over Details */}
@@ -843,6 +860,7 @@ export default function Compare() {
     grinder: '', grindSetting: 0, grindSize: '',
     coffeeDose: 15, waterAmount: 250, waterTempF: 205, waterPPM: 60,
     waterRecipe: '', finalBrewWeight: undefined, tds: undefined,
+    isDiluted: false, dilutionAmount: undefined,
     pourOverDetails: defaultPourOver(),
     espressoDetails: defaultEspresso(),
     brewRecipeName: '', brewRecipeDetails: '', isGoToRecipe: false,
@@ -893,6 +911,8 @@ export default function Compare() {
       espressoDetails: { ...src.espressoDetails },
       brewRecipeName: src.brewRecipeName,
       brewRecipeDetails: src.brewRecipeDetails,
+      isDiluted: src.isDiluted,
+      dilutionAmount: src.dilutionAmount,
     }));
   }
 
@@ -927,6 +947,12 @@ export default function Compare() {
         isQuickLog: false,
         finalBrewWeight: s.finalBrewWeight,
         tds: s.tds,
+        isDiluted: s.isDiluted,
+        dilutionAmount: s.isDiluted ? s.dilutionAmount : undefined,
+        dilutionToCoffeeRatio: (s.isDiluted && s.dilutionAmount && s.coffeeDose > 0)
+          ? Math.round((s.dilutionAmount / s.coffeeDose) * 1000) / 1000 : undefined,
+        dilutionToBrewWaterRatio: (s.isDiluted && s.dilutionAmount && s.waterAmount > 0)
+          ? Math.round((s.dilutionAmount / s.waterAmount) * 1000) / 1000 : undefined,
         pourOverDetails: isPourOver ? s.pourOverDetails : undefined,
         espressoDetails: isEspresso ? s.espressoDetails : undefined,
         flavorProfile: s.flavorProfile,
