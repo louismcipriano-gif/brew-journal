@@ -219,3 +219,34 @@ export interface AppData {
   recipes: SavedRecipe[];
   waterRecipes: WaterRecipe[];
 }
+
+export type LearningCategory =
+  | 'Grind'
+  | 'Temperature'
+  | 'Water'
+  | 'Extraction'
+  | 'Ratio'
+  | 'Brewing Technique'
+  | 'Filter'
+  | 'Device'
+  | 'Coffee Origin'
+  | 'Processing'
+  | 'Roast'
+  | 'Dilution'
+  | 'Flavor'
+  | 'Timing'
+  | 'Pour Technique'
+  | 'Agitation'
+  | 'Other';
+
+export interface Learning {
+  id: string;
+  text: string;
+  category: LearningCategory;
+  comboTags: LearningCategory[];
+  starred: boolean;
+  notes: string;
+  sourceBrewLabels?: string[];   // e.g. ["Brew A", "Brew B"]
+  sourceContext?: string;         // e.g. "Compare · Brew A vs Brew B"
+  createdAt: string;
+}

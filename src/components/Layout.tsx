@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import {
   LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked,
-  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X,
+  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X, GraduationCap,
 } from 'lucide-react';
 import { Button } from './ui';
 
@@ -16,10 +16,11 @@ const primaryNav = [
 ];
 
 const moreNav = [
-  { to: '/recipes',       icon: BookMarked,  label: 'Recipes'  },
-  { to: '/water-recipes', icon: Droplets,    label: 'Water'    },
-  { to: '/compare',       icon: GitCompare,  label: 'Compare'  },
-  { to: '/settings',      icon: Settings2,   label: 'Settings' },
+  { to: '/recipes',       icon: BookMarked,     label: 'Recipes'   },
+  { to: '/water-recipes', icon: Droplets,       label: 'Water'     },
+  { to: '/compare',       icon: GitCompare,     label: 'Compare'   },
+  { to: '/learnings',     icon: GraduationCap,  label: 'Learnings' },
+  { to: '/settings',      icon: Settings2,      label: 'Settings'  },
 ];
 
 const sidebarNav = [
@@ -30,6 +31,7 @@ const sidebarNav = [
   { to: '/water-recipes', icon: Droplets,        label: 'Water'        },
   { to: '/compare',       icon: GitCompare,      label: 'Compare'      },
   { to: '/analytics',     icon: BarChart3,       label: 'Analytics'    },
+  { to: '/learnings',     icon: GraduationCap,   label: 'Learnings'    },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

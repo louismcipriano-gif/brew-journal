@@ -18,6 +18,8 @@ import type {
 import { getApiKey } from './Settings';
 import { parseVoiceWithClaude } from '../utils/parseVoiceWithClaude';
 import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
+import { addLearningToStorage, CategoryBadge, LEARNING_CATEGORIES } from './Learnings';
+import type { LearningCategory } from '../types';
 
 // ── Constants (mirrors BrewForm) ───────────────────────────────────────────────
 
@@ -790,8 +792,9 @@ export default function Compare() {
 
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [showDiffsOnly, setShowDiffsOnly] = useState(false);
-  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [aiInsights, setAiInsights] = useState<Array<{ text: string; category: LearningCategory; comboTags: LearningCategory[] }>>([]);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [savedInsightIds, setSavedInsightIds] = useState<Set<number>>(new Set());
 
   // ── Existing mode ──────────────────────────────────────────────────────────
   const initIds = [
@@ -1019,42 +1022,73 @@ export default function Compare() {
     const key = getApiKey();
     if (!key) { alert('Add your Anthropic API key in Settings to generate insights.'); return; }
     setLoadingInsights(true);
+    setSavedInsightIds(new Set());
     try {
       const summary = compBrews.map((b) => `
 ${b.label} (${b.date}) — Score: ${b.score.toFixed(1)}
 Coffee: ${b.coffee?.roaster ?? '?'} ${b.coffee?.coffeeName ?? '?'} | ${b.coffee?.processingMethod ?? '?'} | ${b.coffee?.roastLevel ?? '?'}
 Device: ${b.device} | Grind: ${b.grindSetting} (${b.grindSize}) | ${b.dose}g : ${b.water}g | ${b.tempF}°F
+Bloom: ${b.bloom ?? '—'}g | Bloom time: ${b.bloomTime ?? '—'} min | Total brew time: ${b.brewTime ?? '—'} min
+Pour height: ${b.pourHeight ?? '—'} | Pour speed: ${b.pourSpeed ?? '—'} | Agitation: ${b.agitation ?? '—'}
 Flavor: Acidity ${b.fp.acidity} | Sweetness ${b.fp.sweetness} | Body ${b.fp.body} | Clarity ${b.fp.clarity} | Florality ${b.fp.florality} | Juiciness ${b.fp.juiciness} | Finish ${b.fp.finish} | Astringency ${b.fp.astringency} | Sourness ${b.fp.sourness}
 Notes: ${b.fp.flavorNotes || '—'} | Extraction: ${b.fp.perceivedExtraction}
 `).join('\n---\n');
+
+      const categoryList = LEARNING_CATEGORIES.join(', ');
 
       const resp = await fetch('/api/claude', {
         method: 'POST',
         headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 600,
+          max_tokens: 800,
           messages: [{
             role: 'user',
-            content: `You are a specialty coffee expert analyzing a side-by-side brew comparison. Give 3-4 specific, actionable insights about what drove the differences in score and flavor. Be concise and direct — name the variable, explain the likely effect. Reference brew labels (Brew A, Brew B, etc.) and specific numbers.
+            content: `You are a specialty coffee expert analyzing a side-by-side brew comparison. Give 3-4 specific, actionable insights about what drove the differences in score and flavor. Reference brew labels (Brew A, Brew B, etc.) and specific numbers. Be concise and direct.
+
+For each insight, assign a primary category from: ${categoryList}
+If the insight covers multiple interacting variables, add 1-2 comboTags from the same list (empty array if single-variable).
 
 Comparison data:
 ${summary}
 
-Return a JSON array of insight strings, e.g. ["Brew A scored higher because...", "The coarser grind in Brew B..."]
-Return ONLY the JSON array, no markdown.`,
+Return ONLY a JSON array, no markdown, no explanation:
+[{"text": "...", "category": "Grind", "comboTags": ["Extraction"]}, ...]`,
           }],
         }),
       });
       const d = await resp.json();
-      const text = d.content?.[0]?.text ?? '[]';
-      const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      setAiInsights(JSON.parse(cleaned));
+      const raw = d.content?.[0]?.text ?? '[]';
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const parsed = JSON.parse(cleaned);
+      // Normalise: ensure comboTags is always an array
+      setAiInsights(parsed.map((x: any) => ({
+        text: x.text ?? x,
+        category: x.category ?? 'Other',
+        comboTags: Array.isArray(x.comboTags) ? x.comboTags : [],
+      })));
     } catch (e: any) {
       alert('Could not generate insights: ' + e.message);
     } finally {
       setLoadingInsights(false);
     }
+  }
+
+  function saveInsight(i: number) {
+    const insight = aiInsights[i];
+    if (!insight) return;
+    const brewLabels = compBrews.map(b => b.label);
+    const context = `Compare · ${brewLabels.join(' vs ')}`;
+    addLearningToStorage({
+      text: insight.text,
+      category: insight.category,
+      comboTags: insight.comboTags,
+      starred: false,
+      notes: '',
+      sourceBrewLabels: brewLabels,
+      sourceContext: context,
+    });
+    setSavedInsightIds(s => new Set([...s, i]));
   }
 
   // ── Radar data ─────────────────────────────────────────────────────────────
@@ -1200,21 +1234,48 @@ Return ONLY the JSON array, no markdown.`,
                 <SectionTitle>AI Insights</SectionTitle>
               </div>
               <Button variant="secondary" size="sm" onClick={generateInsights} disabled={loadingInsights}>
-                {loadingInsights ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : 'Generate Insights'}
+                {loadingInsights ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : aiInsights.length > 0 ? 'Regenerate' : 'Generate Insights'}
               </Button>
             </div>
             {aiInsights.length > 0 ? (
               <div className="flex flex-col gap-3">
-                {aiInsights.map((insight, i) => (
-                  <div key={i} className="flex gap-3 items-start">
-                    <span className="text-brew-primary text-sm font-bold flex-shrink-0">{i + 1}.</span>
-                    <p className="text-sm text-brew-text leading-relaxed">{insight}</p>
-                  </div>
-                ))}
+                {aiInsights.map((insight, i) => {
+                  const saved = savedInsightIds.has(i);
+                  return (
+                    <div key={i} className="flex flex-col gap-2 p-3 rounded-lg bg-brew-surface border border-brew-border/60">
+                      {/* Category badges */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <CategoryBadge cat={insight.category} />
+                        {insight.comboTags.map(t => (
+                          <CategoryBadge key={t} cat={t} />
+                        ))}
+                        {insight.comboTags.length > 0 && (
+                          <span className="text-[9px] text-brew-faint uppercase tracking-wider">combo</span>
+                        )}
+                      </div>
+                      {/* Insight text */}
+                      <p className="text-sm text-brew-text leading-relaxed">{insight.text}</p>
+                      {/* Save button */}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => saveInsight(i)}
+                          disabled={saved}
+                          className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded border transition-all ${
+                            saved
+                              ? 'text-brew-positive border-brew-positive/40 bg-brew-positive/10 cursor-default'
+                              : 'text-brew-muted border-brew-border hover:text-brew-primary hover:border-brew-primary/40 hover:bg-brew-primary/5'
+                          }`}
+                        >
+                          {saved ? '✓ Saved to Learnings' : '+ Save to Learnings'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-brew-faint">
-                Hit Generate Insights to have Claude analyze what drove the differences between these brews.
+                Hit Generate Insights to have Claude analyze what drove the differences between these brews — each insight gets a category tag and can be saved to your Learnings library.
               </p>
             )}
           </Card>
