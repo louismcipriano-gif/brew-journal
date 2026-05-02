@@ -163,7 +163,7 @@ export interface Brew {
   createdAt: string;
 }
 
-export type RecipeAccentuates = 'Sweetness' | 'Acidity' | 'Clarity' | 'Juiciness' | 'Texture' | 'Body' | 'Balance';
+export type RecipeAccentuates = 'Sweetness' | 'Acidity' | 'Clarity' | 'Juiciness' | 'Texture' | 'Body' | 'Balance' | 'Extraction' | 'Low Extraction' | 'Florality' | 'Tame';
 
 export interface GrinderEntry {
   grinder: string;

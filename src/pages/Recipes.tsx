@@ -20,7 +20,7 @@ const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
 const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
 const POUR_STYLES = ['Circular', 'Center', 'Hybrid'] as const;
-const ACCENTUATES: RecipeAccentuates[] = ['Sweetness', 'Acidity', 'Clarity', 'Juiciness', 'Texture', 'Body', 'Balance'];
+const ACCENTUATES: RecipeAccentuates[] = ['Sweetness', 'Acidity', 'Clarity', 'Juiciness', 'Texture', 'Body', 'Balance', 'Extraction', 'Low Extraction', 'Florality', 'Tame'];
 const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 const BREWING_DEVICES = [
@@ -63,13 +63,17 @@ function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass
 }
 
 const ACCENTUATE_COLORS: Record<RecipeAccentuates, string> = {
-  Sweetness: '#b87d28',
-  Acidity:   '#2d6e4e',
-  Clarity:   '#4a7fa5',
-  Juiciness: '#b8920a',
-  Texture:   '#6b5040',
-  Body:      '#5a3820',
-  Balance:   '#7a5c8a',
+  Sweetness:       '#b87d28',
+  Acidity:         '#2d6e4e',
+  Clarity:         '#4a7fa5',
+  Juiciness:       '#b8920a',
+  Texture:         '#6b5040',
+  Body:            '#5a3820',
+  Balance:         '#7a5c8a',
+  Extraction:      '#16a34a',
+  'Low Extraction':'#9a3412',
+  Florality:       '#be185d',
+  Tame:            '#64748b',
 };
 
 const blankRecipe: Omit<SavedRecipe, 'id' | 'createdAt'> = {
