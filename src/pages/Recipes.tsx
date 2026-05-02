@@ -28,7 +28,7 @@ const BREWING_DEVICES = [
   'Cafec Flower', 'Kalita Wave', 'Origami Cone', 'Origami Flat',
   'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
   'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
-  'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot',
+  'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot', 'AeroPress',
 ];
 const FILTERS = [
   'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
@@ -820,6 +820,17 @@ export function RecipeForm() {
                 onChange={(e) => setPO('totalBrewTime', parseFloat(e.target.value) || 0)}
                 suffix="min"
               />
+              {(form.brewMethod === 'Immersion' || form.brewMethod === 'Hybrid Immersion & Filter') && (
+                <Input
+                  label="Immersion Time"
+                  type="number"
+                  min={0}
+                  step={0.25}
+                  value={form.pourOverDetails.immersionTime ?? ''}
+                  onChange={(e) => setPO('immersionTime', parseFloat(e.target.value) || undefined)}
+                  suffix="min"
+                />
+              )}
               <Select
                 label="Pour Height"
                 value={form.pourOverDetails.pourHeight}
@@ -903,6 +914,12 @@ export function RecipeForm() {
                 checked={!!form.pourOverDetails.samoBloom}
                 onChange={(v) => setPO('samoBloom', v)}
                 description="Bypass-style bloom technique"
+              />
+              <Toggle
+                label="Immersed Bloom"
+                checked={!!form.pourOverDetails.immersedBloom}
+                onChange={(v) => setPO('immersedBloom', v)}
+                description="Bloom step done immersed (no drawdown)"
               />
               <Toggle
                 label="Multiple Temperatures"
@@ -1171,6 +1188,8 @@ export function RecipeDetail() {
                 { label: 'Double Bloom', value: recipe.pourOverDetails.doubleBloom ? 'Yes' : 'No' },
                 { label: 'Melodrip', value: recipe.pourOverDetails.melodrip ? 'Yes' : 'No' },
                 { label: 'Samo Bloom', value: recipe.pourOverDetails.samoBloom ? 'Yes' : 'No' },
+                { label: 'Immersed Bloom', value: recipe.pourOverDetails.immersedBloom ? 'Yes' : 'No' },
+                ...(recipe.pourOverDetails.immersionTime ? [{ label: 'Immersion Time', value: `${recipe.pourOverDetails.immersionTime} min` }] : []),
                 { label: 'Multiple Temperatures', value: recipe.pourOverDetails.multipleTemperatures
                     ? (recipe.pourOverDetails.multipleTemperaturesType ?? 'Yes')
                     : 'No' },

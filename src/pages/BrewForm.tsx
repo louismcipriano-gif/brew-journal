@@ -30,7 +30,7 @@ const BREWING_DEVICES = [
   'Cafec Flower', 'Kalita Wave', 'Origami Cone', 'Origami Flat',
   'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
   'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
-  'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot',
+  'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot', 'AeroPress',
 ];
 const FILTERS = [
   'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
@@ -100,6 +100,9 @@ const defaultFlavorProfile: FlavorProfile = {
   finish: 3,
   astringency: 1,
   sourness: 1,
+  funkiness: 1,
+  vegetal: 1,
+  harsh: 1,
   flavorNotes: '',
   perceivedExtraction: 'Balanced',
   moreAcidity: false,
@@ -201,6 +204,7 @@ export default function BrewForm() {
   const initialRecipe = preselectedRecipeId ? getRecipe(preselectedRecipeId) : undefined;
 
   const [showAdvanced, setShowAdvanced] = useState(isEdit || !!cloneBrew);
+  const [selectedRecipeId, setSelectedRecipeId] = useState('');
 
   const [form, setForm] = useState<BrewFormData>(() => {
     // Edit mode: pre-fill from existing brew
@@ -640,7 +644,10 @@ export default function BrewForm() {
         // then overlay any explicit adjustments spoken on top.
         if (fields.brewRecipeName) {
           const matched = findRecipeByName(fields.brewRecipeName);
-          if (matched) applyRecipe(matched);
+          if (matched) {
+            applyRecipe(matched);
+            setSelectedRecipeId(matched.id);
+          }
         }
         applyVoiceFields(fields, voiceAdditive);
 
@@ -999,8 +1006,9 @@ export default function BrewForm() {
               <select
                 id="recipe-select"
                 className="flex-1 bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors appearance-none"
-                defaultValue=""
+                value={selectedRecipeId}
                 onChange={(e) => {
+                  setSelectedRecipeId(e.target.value);
                   if (!e.target.value) return;
                   const r = getRecipe(e.target.value);
                   if (r) applyRecipe(r);
@@ -1416,6 +1424,17 @@ export default function BrewForm() {
                 onChange={(e) => setPO('totalBrewTime', parseFloat(e.target.value) || 0)}
                 suffix="min"
               />
+              {(form.brewMethod === 'Immersion' || form.brewMethod === 'Hybrid Immersion & Filter') && (
+                <Input
+                  label="Immersion Time"
+                  type="number"
+                  min={0}
+                  step={0.25}
+                  value={form.pourOverDetails.immersionTime ?? ''}
+                  onChange={(e) => setPO('immersionTime', parseFloat(e.target.value) || undefined)}
+                  suffix="min"
+                />
+              )}
               <Select
                 label="Pour Height"
                 value={form.pourOverDetails.pourHeight}
@@ -1499,6 +1518,12 @@ export default function BrewForm() {
                 checked={!!form.pourOverDetails.samoBloom}
                 onChange={(v) => setPO('samoBloom', v)}
                 description="Bypass-style bloom technique"
+              />
+              <Toggle
+                label="Immersed Bloom"
+                checked={!!form.pourOverDetails.immersedBloom}
+                onChange={(v) => setPO('immersedBloom', v)}
+                description="Bloom step done immersed (no drawdown)"
               />
               <Toggle
                 label="Multiple Temperatures"
@@ -1698,6 +1723,9 @@ export default function BrewForm() {
             <div className="flex flex-col gap-5">
               <Slider label="Astringency" value={form.flavorProfile.astringency} onChange={(v) => setFP('astringency', v)} negative />
               <Slider label="Sourness" value={form.flavorProfile.sourness} onChange={(v) => setFP('sourness', v)} negative />
+              <Slider label="Funkiness" value={form.flavorProfile.funkiness ?? 1} onChange={(v) => setFP('funkiness', v)} negative />
+              <Slider label="Vegetal" value={form.flavorProfile.vegetal ?? 1} onChange={(v) => setFP('vegetal', v)} negative />
+              <Slider label="Harsh" value={form.flavorProfile.harsh ?? 1} onChange={(v) => setFP('harsh', v)} negative />
             </div>
           </div>
 

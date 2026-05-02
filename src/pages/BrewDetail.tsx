@@ -42,6 +42,9 @@ export default function BrewDetail() {
     { attr: 'Finish', value: brew.flavorProfile.finish },
     { attr: 'Astringency', value: brew.flavorProfile.astringency },
     { attr: 'Sourness', value: brew.flavorProfile.sourness },
+    ...((brew.flavorProfile as any).funkiness > 1 ? [{ attr: 'Funkiness', value: (brew.flavorProfile as any).funkiness }] : []),
+    ...((brew.flavorProfile as any).vegetal > 1 ? [{ attr: 'Vegetal', value: (brew.flavorProfile as any).vegetal }] : []),
+    ...((brew.flavorProfile as any).harsh > 1 ? [{ attr: 'Harsh', value: (brew.flavorProfile as any).harsh }] : []),
   ];
 
   function handleDelete() {

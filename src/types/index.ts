@@ -75,6 +75,8 @@ export interface PourOverDetails {
   samoBloom?: boolean;
   multipleTemperatures?: boolean;
   multipleTemperaturesType?: 'Cooler Bloom' | 'Cooler Finish' | 'Both';
+  immersedBloom?: boolean;
+  immersionTime?: number;
 }
 
 export interface EspressoDetails {
@@ -93,6 +95,9 @@ export interface FlavorProfile {
   finish: number;
   astringency: number;
   sourness: number;
+  funkiness: number;
+  vegetal: number;
+  harsh: number;
   flavorNotes: string;
   perceivedExtraction: PerceivedExtraction;
   moreAcidity: boolean;
