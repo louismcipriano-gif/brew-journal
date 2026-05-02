@@ -9,7 +9,7 @@ import {
   ResponsiveContainer, Tooltip, Legend,
 } from 'recharts';
 import { useApp } from '../context/AppContext';
-import { Card, SectionTitle, ScoreRing, Button, Slider } from '../components/ui';
+import { Card, SectionTitle, ScoreRing, Button, Slider, Chip } from '../components/ui';
 import { calcBrewScore, daysOffRoast, formatDate, brewRatio, fToC } from '../utils';
 import type {
   Brew, FlavorProfile, PerceivedExtraction, BrewMethod,
@@ -125,8 +125,9 @@ const defaultFP = (): FlavorProfile => ({
   astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1, thinness: 1,
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
-  moreFlorality: false, moreBody: false, lessBitterness: false,
-  lessAstringency: false, lessSourness: false, lessMuddled: false, suggestedChange: '',
+  moreFlorality: false, moreBody: false, moreIntensity: false,
+  lessBitterness: false, lessAstringency: false, lessSourness: false,
+  lessMuddled: false, lessIntensity: false, suggestedChange: '',
 });
 
 const defaultPourOver = (): PourOverDetails => ({
@@ -485,10 +486,12 @@ function SlotForm({
     if (v.moreClarity    != null) onUpdateFP('moreClarity',    v.moreClarity);
     if (v.moreFlorality  != null) onUpdateFP('moreFlorality',  v.moreFlorality);
     if (v.moreBody       != null) onUpdateFP('moreBody',       v.moreBody);
+    if ((v as any).moreIntensity != null) onUpdateFP('moreIntensity', (v as any).moreIntensity);
     if (v.lessBitterness != null) onUpdateFP('lessBitterness', v.lessBitterness);
     if (v.lessAstringency!= null) onUpdateFP('lessAstringency', v.lessAstringency);
     if (v.lessSourness   != null) onUpdateFP('lessSourness',   v.lessSourness);
-    if ((v as any).lessMuddled != null) onUpdateFP('lessMuddled', (v as any).lessMuddled);
+    if ((v as any).lessMuddled   != null) onUpdateFP('lessMuddled',   (v as any).lessMuddled);
+    if ((v as any).lessIntensity != null) onUpdateFP('lessIntensity', (v as any).lessIntensity);
   }
 
   async function handleVoiceFill() {
@@ -831,6 +834,39 @@ function SlotForm({
               {v}
             </button>
           ))}
+        </div>
+
+        {/* Reflection */}
+        <div className="border-t border-brew-border/40 pt-3 flex flex-col gap-3">
+          <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">Reflection</p>
+          <div>
+            <p className="text-[10px] text-brew-positive uppercase tracking-wider font-medium mb-1.5">More of</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Chip label="Acidity"   checked={slot.flavorProfile.moreAcidity}            onChange={(v) => onUpdateFP('moreAcidity', v)}   color="positive" />
+              <Chip label="Sweetness" checked={slot.flavorProfile.moreSweetness}           onChange={(v) => onUpdateFP('moreSweetness', v)} color="positive" />
+              <Chip label="Clarity"   checked={slot.flavorProfile.moreClarity}             onChange={(v) => onUpdateFP('moreClarity', v)}   color="positive" />
+              <Chip label="Florality" checked={slot.flavorProfile.moreFlorality}           onChange={(v) => onUpdateFP('moreFlorality', v)} color="positive" />
+              <Chip label="Body"      checked={slot.flavorProfile.moreBody}                onChange={(v) => onUpdateFP('moreBody', v)}      color="positive" />
+              <Chip label="Intensity" checked={(slot.flavorProfile as any).moreIntensity ?? false} onChange={(v) => onUpdateFP('moreIntensity', v)} color="positive" />
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] text-brew-negative uppercase tracking-wider font-medium mb-1.5">Less of</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Chip label="Bitterness"     checked={slot.flavorProfile.lessBitterness}                onChange={(v) => onUpdateFP('lessBitterness', v)}  color="negative" />
+              <Chip label="Astringency"    checked={slot.flavorProfile.lessAstringency}               onChange={(v) => onUpdateFP('lessAstringency', v)} color="negative" />
+              <Chip label="Sourness"       checked={slot.flavorProfile.lessSourness}                  onChange={(v) => onUpdateFP('lessSourness', v)}    color="negative" />
+              <Chip label="Muddled Flavors" checked={slot.flavorProfile.lessMuddled}                  onChange={(v) => onUpdateFP('lessMuddled', v)}     color="negative" />
+              <Chip label="Intensity"      checked={(slot.flavorProfile as any).lessIntensity ?? false} onChange={(v) => onUpdateFP('lessIntensity', v)} color="negative" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel>Suggested Change</FieldLabel>
+            <textarea value={slot.flavorProfile.suggestedChange}
+              onChange={(e) => onUpdateFP('suggestedChange', e.target.value)}
+              rows={2} placeholder="e.g. Grind finer, increase temp…"
+              className="w-full bg-brew-surface border border-brew-border rounded-lg px-2 py-1.5 text-xs text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary resize-none" />
+          </div>
         </div>
       </div>
     </Card>
@@ -1585,6 +1621,66 @@ Return ONLY a JSON array, no markdown, no explanation:
               </div>
             )}
           </Card>
+
+          {/* Reflection & Next Brew */}
+          {compBrews.some(b =>
+            b.fp.moreAcidity || b.fp.moreSweetness || b.fp.moreClarity || b.fp.moreFlorality || b.fp.moreBody || (b.fp as any).moreIntensity ||
+            b.fp.lessBitterness || b.fp.lessAstringency || b.fp.lessSourness || b.fp.lessMuddled || (b.fp as any).lessIntensity ||
+            b.fp.suggestedChange
+          ) && (
+            <Card className="p-5 flex flex-col gap-4">
+              <SectionTitle>Reflection & Next Brew</SectionTitle>
+              <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${compBrews.length}, 1fr)` }}>
+                {compBrews.map((b) => {
+                  const moreOf = [
+                    b.fp.moreAcidity && 'Acidity',
+                    b.fp.moreSweetness && 'Sweetness',
+                    b.fp.moreClarity && 'Clarity',
+                    b.fp.moreFlorality && 'Florality',
+                    b.fp.moreBody && 'Body',
+                    (b.fp as any).moreIntensity && 'Intensity',
+                  ].filter(Boolean) as string[];
+                  const lessOf = [
+                    b.fp.lessBitterness && 'Bitterness',
+                    b.fp.lessAstringency && 'Astringency',
+                    b.fp.lessSourness && 'Sourness',
+                    b.fp.lessMuddled && 'Muddled Flavors',
+                    (b.fp as any).lessIntensity && 'Intensity',
+                  ].filter(Boolean) as string[];
+                  return (
+                    <div key={b.label} className="flex flex-col gap-3">
+                      <p className="text-xs font-bold" style={{ color: b.color }}>{b.label}</p>
+                      {moreOf.length > 0 && (
+                        <div>
+                          <p className="text-[10px] text-brew-positive uppercase tracking-wider font-medium mb-1.5">More of</p>
+                          <div className="flex flex-wrap gap-1">
+                            {moreOf.map(t => (
+                              <span key={t} className="px-2 py-0.5 bg-brew-positive/20 text-brew-positive text-xs rounded-full">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {lessOf.length > 0 && (
+                        <div>
+                          <p className="text-[10px] text-brew-negative uppercase tracking-wider font-medium mb-1.5">Less of</p>
+                          <div className="flex flex-wrap gap-1">
+                            {lessOf.map(t => (
+                              <span key={t} className="px-2 py-0.5 bg-brew-negative/20 text-brew-negative text-xs rounded-full">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {b.fp.suggestedChange && (
+                        <p className="text-xs text-brew-muted">
+                          <span className="text-brew-faint">Suggested: </span>{b.fp.suggestedChange}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
         </>
       )}
 

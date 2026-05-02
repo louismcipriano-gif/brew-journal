@@ -111,10 +111,12 @@ const defaultFlavorProfile: FlavorProfile = {
   moreClarity: false,
   moreFlorality: false,
   moreBody: false,
+  moreIntensity: false,
   lessBitterness: false,
   lessAstringency: false,
   lessSourness: false,
   lessMuddled: false,
+  lessIntensity: false,
   suggestedChange: '',
 };
 
@@ -473,10 +475,12 @@ export default function BrewForm() {
       if (v.moreClarity    != null) fp.moreClarity    = v.moreClarity;
       if (v.moreFlorality  != null) fp.moreFlorality  = v.moreFlorality;
       if (v.moreBody       != null) fp.moreBody       = v.moreBody;
+      if ((v as any).moreIntensity != null) fp.moreIntensity = (v as any).moreIntensity;
       if (v.lessBitterness != null) fp.lessBitterness = v.lessBitterness;
       if (v.lessAstringency!= null) fp.lessAstringency= v.lessAstringency;
       if (v.lessSourness   != null) fp.lessSourness   = v.lessSourness;
-      if ((v as any).lessMuddled != null) fp.lessMuddled = (v as any).lessMuddled;
+      if ((v as any).lessMuddled   != null) fp.lessMuddled   = (v as any).lessMuddled;
+      if ((v as any).lessIntensity != null) fp.lessIntensity = (v as any).lessIntensity;
       u.flavorProfile = fp;
 
       return u;
@@ -1786,6 +1790,7 @@ export default function BrewForm() {
               <Chip label="Clarity" checked={form.flavorProfile.moreClarity} onChange={(v) => setFP('moreClarity', v)} color="positive" />
               <Chip label="Florality" checked={form.flavorProfile.moreFlorality} onChange={(v) => setFP('moreFlorality', v)} color="positive" />
               <Chip label="Body" checked={form.flavorProfile.moreBody} onChange={(v) => setFP('moreBody', v)} color="positive" />
+              <Chip label="Intensity" checked={form.flavorProfile.moreIntensity ?? false} onChange={(v) => setFP('moreIntensity', v)} color="positive" />
             </div>
           </div>
 
@@ -1796,6 +1801,7 @@ export default function BrewForm() {
               <Chip label="Astringency" checked={form.flavorProfile.lessAstringency} onChange={(v) => setFP('lessAstringency', v)} color="negative" />
               <Chip label="Sourness" checked={form.flavorProfile.lessSourness} onChange={(v) => setFP('lessSourness', v)} color="negative" />
               <Chip label="Muddled Flavors" checked={form.flavorProfile.lessMuddled} onChange={(v) => setFP('lessMuddled', v)} color="negative" />
+              <Chip label="Intensity" checked={form.flavorProfile.lessIntensity ?? false} onChange={(v) => setFP('lessIntensity', v)} color="negative" />
             </div>
           </div>
 

@@ -61,6 +61,7 @@ export default function BrewDetail() {
     brew.flavorProfile.moreClarity && 'Clarity',
     brew.flavorProfile.moreFlorality && 'Florality',
     brew.flavorProfile.moreBody && 'Body',
+    (brew.flavorProfile as any).moreIntensity && 'Intensity',
   ].filter(Boolean) as string[];
 
   const lessOf = [
@@ -68,6 +69,7 @@ export default function BrewDetail() {
     brew.flavorProfile.lessAstringency && 'Astringency',
     brew.flavorProfile.lessSourness && 'Sourness',
     brew.flavorProfile.lessMuddled && 'Muddled Flavors',
+    (brew.flavorProfile as any).lessIntensity && 'Intensity',
   ].filter(Boolean) as string[];
 
   return (

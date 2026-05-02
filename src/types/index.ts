@@ -106,10 +106,12 @@ export interface FlavorProfile {
   moreClarity: boolean;
   moreFlorality: boolean;
   moreBody: boolean;
+  moreIntensity: boolean;
   lessBitterness: boolean;
   lessAstringency: boolean;
   lessSourness: boolean;
   lessMuddled: boolean;
+  lessIntensity: boolean;
   suggestedChange: string;
 }
 
