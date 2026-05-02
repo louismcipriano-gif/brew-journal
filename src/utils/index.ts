@@ -31,9 +31,15 @@ export function fToC(f: number): number {
   return Math.round(((f - 32) * 5) / 9 * 10) / 10;
 }
 
+function localDate(iso: string): Date {
+  // Appending T00:00:00 forces JS to parse as local midnight, not UTC midnight,
+  // which prevents the date from rolling back one day in US timezones.
+  return new Date(iso.length === 10 ? iso + 'T00:00:00' : iso);
+}
+
 export function daysOffRoast(roastDate: string, brewDate: string): number {
-  const roast = new Date(roastDate).getTime();
-  const brew = new Date(brewDate).getTime();
+  const roast = localDate(roastDate).getTime();
+  const brew = localDate(brewDate).getTime();
   return Math.floor((brew - roast) / (1000 * 60 * 60 * 24));
 }
 
@@ -59,7 +65,7 @@ export function pricePerGram(price: number, grams: number): string {
 
 export function formatDate(iso: string): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', {
+  return localDate(iso).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
