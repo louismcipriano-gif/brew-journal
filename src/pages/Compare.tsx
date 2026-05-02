@@ -91,6 +91,19 @@ function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const SLOT_COLORS = ['#5a3820', '#2d6e4e', '#b8920a', '#9b3328'];
+
+const COMPARE_INTENT_CHIPS = [
+  'Grind size impact',
+  'Temperature effect',
+  'Filter comparison',
+  'Water recipe test',
+  'Bloom amount / timing',
+  'Pour technique',
+  'Agitation level',
+  'Brew ratio',
+  'Different coffees',
+  'Same coffee, different devices',
+];
 const SLOT_LABELS = ['Brew A', 'Brew B', 'Brew C', 'Brew D'];
 const MAX_SLOTS = 4;
 
@@ -795,6 +808,8 @@ export default function Compare() {
   const [aiInsights, setAiInsights] = useState<Array<{ text: string; category: LearningCategory; comboTags: LearningCategory[] }>>([]);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [savedInsightIds, setSavedInsightIds] = useState<Set<number>>(new Set());
+  const [compareIntent, setCompareIntent] = useState('');
+  const [intentChips, setIntentChips] = useState<string[]>([]);
 
   // ── Existing mode ──────────────────────────────────────────────────────────
   const initIds = [
@@ -1035,6 +1050,11 @@ Notes: ${b.fp.flavorNotes || '—'} | Extraction: ${b.fp.perceivedExtraction}
 `).join('\n---\n');
 
       const categoryList = LEARNING_CATEGORIES.join(', ');
+      const allChips = intentChips.join(', ');
+      const intentLine = [allChips, compareIntent.trim()].filter(Boolean).join(' — ');
+      const intentSection = intentLine
+        ? `\nBREWER'S FOCUS: "${intentLine}" — prioritize insights related to this variable/question.\n`
+        : '';
 
       const resp = await fetch('/api/claude', {
         method: 'POST',
@@ -1045,7 +1065,7 @@ Notes: ${b.fp.flavorNotes || '—'} | Extraction: ${b.fp.perceivedExtraction}
           messages: [{
             role: 'user',
             content: `You are a specialty coffee expert analyzing a side-by-side brew comparison. Give 3-4 specific, actionable insights about what drove the differences in score and flavor. Reference brew labels (Brew A, Brew B, etc.) and specific numbers. Be concise and direct.
-
+${intentSection}
 For each insight, assign a primary category from: ${categoryList}
 If the insight covers multiple interacting variables, add 1-2 comboTags from the same list (empty array if single-variable).
 
@@ -1228,11 +1248,46 @@ Return ONLY a JSON array, no markdown, no explanation:
 
           {/* AI Insights */}
           <Card className="p-5 flex flex-col gap-4 border-brew-primary/20 bg-brew-primary/5">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-brew-primary-light" />
-                <SectionTitle>AI Insights</SectionTitle>
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-brew-primary-light" />
+              <SectionTitle>AI Insights</SectionTitle>
+            </div>
+
+            {/* What are you testing? */}
+            <div className="flex flex-col gap-2">
+              <p className="text-[10px] font-semibold text-brew-muted uppercase tracking-wider">What are you testing? <span className="normal-case font-normal text-brew-faint">(optional — helps focus the analysis)</span></p>
+              <div className="flex flex-wrap gap-1.5">
+                {COMPARE_INTENT_CHIPS.map(chip => {
+                  const active = intentChips.includes(chip);
+                  return (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setIntentChips(cs =>
+                        active ? cs.filter(c => c !== chip) : [...cs, chip]
+                      )}
+                      className={`px-2.5 py-1 rounded-full text-xs border transition-all ${
+                        active
+                          ? 'bg-brew-primary/20 border-brew-primary/60 text-brew-primary-light font-medium'
+                          : 'border-brew-border text-brew-faint hover:border-brew-muted hover:text-brew-muted'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  );
+                })}
               </div>
+              <input
+                type="text"
+                value={compareIntent}
+                onChange={e => setCompareIntent(e.target.value)}
+                placeholder="Or describe your focus... e.g. 'testing if higher agitation helps clarity on this natural'"
+                className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary"
+              />
+            </div>
+
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div />
               <Button variant="secondary" size="sm" onClick={generateInsights} disabled={loadingInsights}>
                 {loadingInsights ? <><Loader2 size={13} className="animate-spin" /> Generating…</> : aiInsights.length > 0 ? 'Regenerate' : 'Generate Insights'}
               </Button>
