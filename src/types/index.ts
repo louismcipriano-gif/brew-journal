@@ -23,7 +23,8 @@ export type BrewMethod =
   | 'Espresso'
   | 'Immersion'
   | 'AeroPress'
-  | 'Zuppa Longa';
+  | 'Zuppa Longa'
+  | 'Hybrid Immersion & Filter';
 
 export type PourHeightSpeed = 'Low' | 'Medium' | 'High' | 'Combination';
 
@@ -71,6 +72,9 @@ export interface PourOverDetails {
   pourSpeedMaxMlS?: number;
   pourSpeedMinMlS?: number;
   varyingPourSpeed?: boolean;
+  samoBloom?: boolean;
+  multipleTemperatures?: boolean;
+  multipleTemperaturesType?: 'Cooler Bloom' | 'Cooler Finish' | 'Both';
 }
 
 export interface EspressoDetails {

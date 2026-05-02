@@ -23,7 +23,7 @@ import type { LearningCategory } from '../types';
 
 // ── Constants (mirrors BrewForm) ───────────────────────────────────────────────
 
-const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
+const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa', 'Hybrid Immersion & Filter'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
 const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
@@ -377,7 +377,7 @@ function SlotForm({
   onRemove: () => void;
   onCopyFromA: () => void;
 }) {
-  const isPourOver = slot.brewMethod === 'Pour Over' || slot.brewMethod === 'Immersion';
+  const isPourOver = slot.brewMethod === 'Pour Over' || slot.brewMethod === 'Immersion' || slot.brewMethod === 'Hybrid Immersion & Filter';
   const isEspresso = slot.brewMethod === 'Espresso';
 
   // ── Voice fill ───────────────────────────────────────────────────────────────
@@ -743,7 +743,27 @@ function SlotForm({
             <Toggle label="Melodrip" value={slot.pourOverDetails.melodrip} onChange={(v) => onUpdatePO('melodrip', v)} />
             <Toggle label="Double Bloom" value={slot.pourOverDetails.doubleBloom} onChange={(v) => onUpdatePO('doubleBloom', v)} />
             <Toggle label="Varying Speed" value={slot.pourOverDetails.varyingPourSpeed ?? false} onChange={(v) => onUpdatePO('varyingPourSpeed', v)} />
+            <Toggle label="Samo Bloom" value={!!slot.pourOverDetails.samoBloom} onChange={(v) => onUpdatePO('samoBloom', v)} />
+            <Toggle label="Multiple Temps" value={!!slot.pourOverDetails.multipleTemperatures} onChange={(v) => onUpdatePO('multipleTemperatures', v)} />
           </div>
+          {slot.pourOverDetails.multipleTemperatures && (
+            <div className="flex flex-wrap gap-1.5">
+              {(['Cooler Bloom', 'Cooler Finish', 'Both'] as const).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => onUpdatePO('multipleTemperaturesType', opt)}
+                  className={`px-2.5 py-1 rounded text-xs border transition-all ${
+                    slot.pourOverDetails.multipleTemperaturesType === opt
+                      ? 'bg-brew-primary/20 border-brew-primary text-brew-primary-light font-medium'
+                      : 'border-brew-border text-brew-faint hover:border-brew-muted'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -922,7 +942,7 @@ export default function Compare() {
     slots.forEach((s) => {
       const coffee = getCoffee(s.coffeeId);
       const score = calcBrewScore(s.flavorProfile);
-      const isPourOver = s.brewMethod === 'Pour Over' || s.brewMethod === 'Immersion';
+      const isPourOver = s.brewMethod === 'Pour Over' || s.brewMethod === 'Immersion' || s.brewMethod === 'Hybrid Immersion & Filter';
       const isEspresso = s.brewMethod === 'Espresso';
       addBrew({
         coffeeId: s.coffeeId,
@@ -987,6 +1007,7 @@ export default function Compare() {
     pours?: number; bloom?: number; bloomTime?: number; brewTime?: number;
     pourHeight?: string; pourSpeed?: string; pourSpeedMlS?: string;
     agitation?: string; melodrip?: boolean; doubleBloom?: boolean; varyingPourSpeed?: boolean;
+    samoBloom?: boolean; multipleTemperatures?: boolean; multipleTemperaturesType?: string;
     daysOff?: number;
   };
 
@@ -1021,6 +1042,9 @@ export default function Compare() {
       melodrip: b.pourOverDetails?.melodrip,
       doubleBloom: b.pourOverDetails?.doubleBloom,
       varyingPourSpeed: b.pourOverDetails?.varyingPourSpeed,
+      samoBloom: b.pourOverDetails?.samoBloom,
+      multipleTemperatures: b.pourOverDetails?.multipleTemperatures,
+      multipleTemperaturesType: b.pourOverDetails?.multipleTemperaturesType,
       daysOff: coffee?.roastDate ? daysOffRoast(coffee.roastDate, b.brewDate) : undefined,
     };
   }
@@ -1051,6 +1075,9 @@ export default function Compare() {
         melodrip: s.pourOverDetails.melodrip,
         doubleBloom: s.pourOverDetails.doubleBloom,
         varyingPourSpeed: s.pourOverDetails.varyingPourSpeed,
+        samoBloom: s.pourOverDetails.samoBloom,
+        multipleTemperatures: s.pourOverDetails.multipleTemperatures,
+        multipleTemperaturesType: s.pourOverDetails.multipleTemperaturesType,
       }));
 
   const hasData = compBrews.length >= 2 && (
@@ -1449,6 +1476,8 @@ Return ONLY a JSON array, no markdown, no explanation:
               {rowVisible(compBrews.map(b => b.melodrip === undefined ? undefined : b.melodrip ? 'Yes' : 'No')) && <CompareRow label="Melodrip" values={compBrews.map(b => b.melodrip === undefined ? '—' : b.melodrip ? 'Yes' : 'No')} />}
               {rowVisible(compBrews.map(b => b.doubleBloom === undefined ? undefined : b.doubleBloom ? 'Yes' : 'No')) && <CompareRow label="Double Bloom" values={compBrews.map(b => b.doubleBloom === undefined ? '—' : b.doubleBloom ? 'Yes' : 'No')} />}
               {rowVisible(compBrews.map(b => b.varyingPourSpeed === undefined ? undefined : b.varyingPourSpeed ? 'Yes' : 'No')) && <CompareRow label="Varying Speed" values={compBrews.map(b => b.varyingPourSpeed === undefined ? '—' : b.varyingPourSpeed ? 'Yes' : 'No')} />}
+              {rowVisible(compBrews.map(b => b.samoBloom === undefined ? undefined : b.samoBloom ? 'Yes' : 'No')) && <CompareRow label="Samo Bloom" values={compBrews.map(b => b.samoBloom === undefined ? '—' : b.samoBloom ? 'Yes' : 'No')} />}
+              {rowVisible(compBrews.map(b => b.multipleTemperatures === undefined ? undefined : b.multipleTemperatures ? (b.multipleTemperaturesType ?? 'Yes') : 'No')) && <CompareRow label="Multiple Temps" values={compBrews.map(b => b.multipleTemperatures === undefined ? '—' : b.multipleTemperatures ? (b.multipleTemperaturesType ?? 'Yes') : 'No')} />}
             </Card>
           )}
 

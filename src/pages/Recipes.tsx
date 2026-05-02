@@ -15,7 +15,7 @@ import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
 import { fetchRecipeFromUrl } from '../utils/fetchRecipeFromUrl';
 import { getApiKey, getScreenshotKey } from './Settings';
 
-const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
+const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa', 'Hybrid Immersion & Filter'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
 const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
@@ -141,8 +141,11 @@ export function RecipeForm() {
       : blankRecipe,
   );
 
+  const isPourOverMethod = (m: BrewMethod) =>
+    m === 'Pour Over' || m === 'Immersion' || m === 'Hybrid Immersion & Filter';
+
   useEffect(() => {
-    if (form.brewMethod === 'Pour Over') {
+    if (isPourOverMethod(form.brewMethod)) {
       setForm((f) => ({
         ...f,
         pourOverDetails: f.pourOverDetails ?? blankRecipe.pourOverDetails,
@@ -768,7 +771,7 @@ export function RecipeForm() {
         </Card>
 
         {/* Pour Over Details */}
-        {form.brewMethod === 'Pour Over' && form.pourOverDetails && (
+        {isPourOverMethod(form.brewMethod) && form.pourOverDetails && (
           <Card className="p-6 flex flex-col gap-4">
             <SectionTitle>Pour Over Details</SectionTitle>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -891,6 +894,36 @@ export function RecipeForm() {
                 onChange={(v) => setPO('melodrip', v)}
                 description="Used Melodrip flow restrictor"
               />
+              <Toggle
+                label="Samo Bloom"
+                checked={!!form.pourOverDetails.samoBloom}
+                onChange={(v) => setPO('samoBloom', v)}
+                description="Bypass-style bloom technique"
+              />
+              <Toggle
+                label="Multiple Temperatures"
+                checked={!!form.pourOverDetails.multipleTemperatures}
+                onChange={(v) => setPO('multipleTemperatures', v)}
+                description="Different water temps used during brew"
+              />
+              {form.pourOverDetails.multipleTemperatures && (
+                <div className="flex flex-wrap gap-2 pl-4">
+                  {(['Cooler Bloom', 'Cooler Finish', 'Both'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setPO('multipleTemperaturesType', opt)}
+                      className={`px-3 py-1.5 rounded-lg text-sm border transition-all ${
+                        form.pourOverDetails?.multipleTemperaturesType === opt
+                          ? 'bg-brew-primary/20 border-brew-primary/60 text-brew-primary-light font-medium'
+                          : 'border-brew-border text-brew-faint hover:border-brew-muted hover:text-brew-muted'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         )}
@@ -1133,6 +1166,10 @@ export function RecipeDetail() {
                 { label: 'Agitation', value: recipe.pourOverDetails.agitation },
                 { label: 'Double Bloom', value: recipe.pourOverDetails.doubleBloom ? 'Yes' : 'No' },
                 { label: 'Melodrip', value: recipe.pourOverDetails.melodrip ? 'Yes' : 'No' },
+                { label: 'Samo Bloom', value: recipe.pourOverDetails.samoBloom ? 'Yes' : 'No' },
+                { label: 'Multiple Temperatures', value: recipe.pourOverDetails.multipleTemperatures
+                    ? (recipe.pourOverDetails.multipleTemperaturesType ?? 'Yes')
+                    : 'No' },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between text-sm border-b border-brew-border/40 pb-2 last:border-0 last:pb-0">
                   <span className="text-brew-faint">{label}</span>

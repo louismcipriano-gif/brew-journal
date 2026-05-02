@@ -18,7 +18,7 @@ import { streamSuggestion, buildPreBrewPrompt, HAIKU_MODEL, SONNET_MODEL } from 
 import type { SuggestionModel } from '../utils/aiSuggestions';
 import { getApiKey } from './Settings';
 
-const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
+const BREW_METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa', 'Hybrid Immersion & Filter'];
 const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
 const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
@@ -271,8 +271,11 @@ export default function BrewForm() {
   const voiceRecRef = useRef<any>(null);
   const voiceTranscriptRef = useRef('');
 
+  const isPourOverMethod = (m: BrewMethod) =>
+    m === 'Pour Over' || m === 'Immersion' || m === 'Hybrid Immersion & Filter';
+
   useEffect(() => {
-    if (form.brewMethod === 'Pour Over') {
+    if (isPourOverMethod(form.brewMethod)) {
       setForm((f) => ({
         ...f,
         pourOverDetails: f.pourOverDetails ?? defaultPourOver,
@@ -1059,7 +1062,7 @@ export default function BrewForm() {
               <Input label="Water Temp" type="number" min={150} max={212} value={form.waterTempF || ''} onChange={(e) => set('waterTempF', parseFloat(e.target.value) || 0)} suffix="°F" />
               <Input label="Recipe Name" value={form.brewRecipeName} onChange={(e) => set('brewRecipeName', e.target.value)} placeholder="e.g. Hoffmann 4-6" />
             </div>
-            {form.brewMethod === 'Pour Over' && (
+            {isPourOverMethod(form.brewMethod) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Total Pours" type="number" min={1} max={20} value={form.pourOverDetails?.totalPours || ''} onChange={(e) => setPO('totalPours', parseInt(e.target.value) || 0)} />
                 <div className="flex items-center justify-between pt-5">
@@ -1367,7 +1370,7 @@ export default function BrewForm() {
         </Card>
 
         {/* ── Pour Over Details ─────────────────────────────── */}
-        {form.brewMethod === 'Pour Over' && form.pourOverDetails && (
+        {isPourOverMethod(form.brewMethod) && form.pourOverDetails && (
           <Card className="p-6 flex flex-col gap-4">
             <SectionTitle>Pour Over Details</SectionTitle>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1491,6 +1494,36 @@ export default function BrewForm() {
                 onChange={(v) => setPO('melodrip', v)}
                 description="Used Melodrip flow restrictor"
               />
+              <Toggle
+                label="Samo Bloom"
+                checked={!!form.pourOverDetails.samoBloom}
+                onChange={(v) => setPO('samoBloom', v)}
+                description="Bypass-style bloom technique"
+              />
+              <Toggle
+                label="Multiple Temperatures"
+                checked={!!form.pourOverDetails.multipleTemperatures}
+                onChange={(v) => setPO('multipleTemperatures', v)}
+                description="Different water temps used during brew"
+              />
+              {form.pourOverDetails.multipleTemperatures && (
+                <div className="flex flex-wrap gap-2 pl-4">
+                  {(['Cooler Bloom', 'Cooler Finish', 'Both'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setPO('multipleTemperaturesType', opt)}
+                      className={`px-3 py-1.5 rounded-lg text-sm border transition-all ${
+                        form.pourOverDetails?.multipleTemperaturesType === opt
+                          ? 'bg-brew-primary/20 border-brew-primary/60 text-brew-primary-light font-medium'
+                          : 'border-brew-border text-brew-faint hover:border-brew-muted hover:text-brew-muted'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         )}
