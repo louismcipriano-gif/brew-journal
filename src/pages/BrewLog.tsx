@@ -6,7 +6,7 @@ import { Button, Card, Badge, ScoreRing, Select, EmptyState } from '../component
 import { calcBrewScore, formatDate, daysOffRoast, brewRatio } from '../utils';
 import type { BrewMethod } from '../types';
 
-const METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa'];
+const METHODS: BrewMethod[] = ['Pour Over', 'Espresso', 'Immersion', 'AeroPress', 'Zuppa Longa', 'Hybrid Immersion & Filter'];
 
 export default function BrewLog() {
   const navigate = useNavigate();

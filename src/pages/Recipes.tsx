@@ -155,6 +155,12 @@ export function RecipeForm() {
         pourOverDetails: f.pourOverDetails ?? blankRecipe.pourOverDetails,
         espressoDetails: undefined,
       }));
+    } else if (form.brewMethod === 'AeroPress') {
+      setForm((f) => ({
+        ...f,
+        pourOverDetails: f.pourOverDetails ?? blankRecipe.pourOverDetails,
+        espressoDetails: undefined,
+      }));
     } else if (form.brewMethod === 'Espresso') {
       setForm((f) => ({
         ...f,
@@ -949,6 +955,47 @@ export function RecipeForm() {
           </Card>
         )}
 
+        {/* AeroPress Details */}
+        {form.brewMethod === 'AeroPress' && form.pourOverDetails && (
+          <Card className="p-6 flex flex-col gap-4">
+            <SectionTitle>AeroPress Details</SectionTitle>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Immersion Time"
+                type="number"
+                min={0}
+                step={0.25}
+                value={form.pourOverDetails.immersionTime ?? ''}
+                onChange={(e) => setPO('immersionTime', parseFloat(e.target.value) || undefined)}
+                suffix="min"
+              />
+              <Input
+                label="Total Brew Time"
+                type="number"
+                min={0}
+                step={0.25}
+                value={form.pourOverDetails.totalBrewTime || ''}
+                onChange={(e) => setPO('totalBrewTime', parseFloat(e.target.value) || 0)}
+                suffix="min"
+              />
+            </div>
+            <div className="flex flex-col gap-3 pt-1">
+              <Toggle
+                label="Agitate Bloom"
+                checked={!!form.pourOverDetails.agitateBloom}
+                onChange={(v) => setPO('agitateBloom', v)}
+                description="Stir or swirl during bloom"
+              />
+              <Toggle
+                label="Swirl"
+                checked={!!form.pourOverDetails.swirl}
+                onChange={(v) => setPO('swirl', v)}
+                description="Swirl brewer during brew"
+              />
+            </div>
+          </Card>
+        )}
+
         {/* Espresso Details */}
         {form.brewMethod === 'Espresso' && form.espressoDetails && (
           <Card className="p-6 flex flex-col gap-4">
@@ -1168,7 +1215,7 @@ export function RecipeDetail() {
 
         {recipe.pourOverDetails && (
           <Card className="p-5">
-            <SectionTitle>Pour Over Details</SectionTitle>
+            <SectionTitle>{recipe.brewMethod === 'AeroPress' ? 'AeroPress Details' : 'Pour Over Details'}</SectionTitle>
             <dl className="flex flex-col gap-2">
               {[
                 { label: 'Total Pours', value: recipe.pourOverDetails.totalPours },
@@ -1189,6 +1236,8 @@ export function RecipeDetail() {
                 { label: 'Melodrip', value: recipe.pourOverDetails.melodrip ? 'Yes' : 'No' },
                 { label: 'Samo Bloom', value: recipe.pourOverDetails.samoBloom ? 'Yes' : 'No' },
                 { label: 'Immersed Bloom', value: recipe.pourOverDetails.immersedBloom ? 'Yes' : 'No' },
+                ...(recipe.pourOverDetails.agitateBloom !== undefined ? [{ label: 'Agitate Bloom', value: recipe.pourOverDetails.agitateBloom ? 'Yes' : 'No' }] : []),
+                ...(recipe.pourOverDetails.swirl !== undefined ? [{ label: 'Swirl', value: recipe.pourOverDetails.swirl ? 'Yes' : 'No' }] : []),
                 ...(recipe.pourOverDetails.immersionTime ? [{ label: 'Immersion Time', value: `${recipe.pourOverDetails.immersionTime} min` }] : []),
                 { label: 'Multiple Temperatures', value: recipe.pourOverDetails.multipleTemperatures
                     ? (recipe.pourOverDetails.multipleTemperaturesType ?? 'Yes')
