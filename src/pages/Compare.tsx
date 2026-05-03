@@ -117,15 +117,15 @@ const FLAVOR_DIMS = [
   { key: 'finish',    label: 'Finish'    },
 ] as const;
 
-const NEG_DIMS = ['astringency', 'sourness', 'funkiness', 'vegetal', 'harsh', 'thinness'] as const;
+const NEG_DIMS = ['astringency', 'sourness', 'funkiness', 'vegetal', 'harsh', 'thinness', 'muddled'] as const;
 
 const defaultFP = (): FlavorProfile => ({
   acidity: 3, sweetness: 3, body: 3, florality: 3,
   clarity: 3, juiciness: 3, finish: 3,
-  astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1, thinness: 1,
+  astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1, thinness: 1, muddled: 1,
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
-  moreFlorality: false, moreBody: false, moreIntensity: false,
+  moreFlorality: false, moreBody: false, moreIntensity: false, flavorsPopping: false,
   lessBitterness: false, lessAstringency: false, lessSourness: false,
   lessMuddled: false, lessIntensity: false, suggestedChange: '',
 });
@@ -156,6 +156,7 @@ interface SideBySideSlot {
   grinder: string;
   grindSetting: number;
   grindSize: string;
+  rpmSpeed?: number;
   // parameters
   coffeeDose: number;
   waterAmount: number;
@@ -687,6 +688,10 @@ function SlotForm({
             onChange={(v) => handleGrindSettingChange(v)} />
           <SlotInput label="Grind Size" options={GRIND_SIZES} value={slot.grindSize}
             onChange={(v) => onUpdate({ grindSize: v })} />
+          {slot.grinder.toLowerCase().includes('sculptor') && (
+            <SlotInput label="RPM Speed" type="number" step={50} value={slot.rpmSpeed ?? 800}
+              onChange={(v) => onUpdate({ rpmSpeed: v || undefined })} />
+          )}
         </div>
       </div>
 
@@ -696,6 +701,22 @@ function SlotForm({
         <div className="grid grid-cols-2 gap-2">
           <SlotInput label="Dose (g)" step={0.5} value={slot.coffeeDose || ''} onChange={(v) => onUpdate({ coffeeDose: v })} />
           <SlotInput label="Water (g)" step={1} value={slot.waterAmount || ''} onChange={(v) => onUpdate({ waterAmount: v })} />
+          {slot.coffeeDose > 0 && (
+            <div className="col-span-2 flex items-center gap-2">
+              <span className="text-[10px] text-brew-faint whitespace-nowrap">Ratio 1:</span>
+              <input
+                type="number" min={1} step={0.1}
+                value={slot.waterAmount > 0 ? parseFloat((slot.waterAmount / slot.coffeeDose).toFixed(1)) : ''}
+                onChange={(e) => {
+                  const r = parseFloat(e.target.value);
+                  if (!isNaN(r) && r > 0) onUpdate({ waterAmount: Math.round(slot.coffeeDose * r) });
+                }}
+                placeholder="e.g. 15"
+                className="flex-1 bg-brew-surface border border-brew-border rounded px-2 py-1 text-xs text-brew-text focus:outline-none focus:border-brew-primary"
+              />
+              {slot.waterAmount > 0 && <span className="text-[10px] text-brew-faint">= {slot.waterAmount}g</span>}
+            </div>
+          )}
           <SlotInput label="Temp (°F)" step={1} value={slot.waterTempF || ''} onChange={(v) => onUpdate({ waterTempF: v })} />
           <SlotInput label="PPM" step={5} value={slot.waterPPM || ''} onChange={(v) => onUpdate({ waterPPM: v })} />
         </div>
@@ -731,7 +752,7 @@ function SlotForm({
             <SlotInput label="Bloom (g)" step={0.5} value={slot.pourOverDetails.bloomAmount || ''} onChange={(v) => onUpdatePO('bloomAmount', v)} />
             <SlotInput label="Bloom Time (min)" step={0.25} value={slot.pourOverDetails.bloomTime || ''} onChange={(v) => onUpdatePO('bloomTime', v)} />
             <SlotInput label="Total Time (min)" step={0.25} value={slot.pourOverDetails.totalBrewTime || ''} onChange={(v) => onUpdatePO('totalBrewTime', v)} />
-            {(slot.brewMethod === 'Immersion' || slot.brewMethod === 'Hybrid Immersion & Filter') && (
+            {(slot.brewMethod === 'Immersion' || slot.brewMethod === 'Hybrid Immersion & Filter' || slot.brewMethod === 'AeroPress') && (
               <SlotInput label="Immersion Time (min)" step={0.25} value={slot.pourOverDetails.immersionTime ?? ''} onChange={(v) => onUpdatePO('immersionTime', v || undefined)} />
             )}
           </div>
@@ -751,6 +772,8 @@ function SlotForm({
             <Toggle label="Varying Speed" value={slot.pourOverDetails.varyingPourSpeed ?? false} onChange={(v) => onUpdatePO('varyingPourSpeed', v)} />
             <Toggle label="Samo Bloom" value={!!slot.pourOverDetails.samoBloom} onChange={(v) => onUpdatePO('samoBloom', v)} />
             <Toggle label="Immersed Bloom" value={!!slot.pourOverDetails.immersedBloom} onChange={(v) => onUpdatePO('immersedBloom', v)} />
+            <Toggle label="Agitate Bloom" value={!!slot.pourOverDetails.agitateBloom} onChange={(v) => onUpdatePO('agitateBloom', v)} />
+            <Toggle label="Swirl" value={!!slot.pourOverDetails.swirl} onChange={(v) => onUpdatePO('swirl', v)} />
             <Toggle label="Multiple Temps" value={!!slot.pourOverDetails.multipleTemperatures} onChange={(v) => onUpdatePO('multipleTemperatures', v)} />
           </div>
           {slot.pourOverDetails.multipleTemperatures && (
@@ -848,6 +871,7 @@ function SlotForm({
               <Chip label="Florality" checked={slot.flavorProfile.moreFlorality}           onChange={(v) => onUpdateFP('moreFlorality', v)} color="positive" />
               <Chip label="Body"      checked={slot.flavorProfile.moreBody}                onChange={(v) => onUpdateFP('moreBody', v)}      color="positive" />
               <Chip label="Intensity" checked={(slot.flavorProfile as any).moreIntensity ?? false} onChange={(v) => onUpdateFP('moreIntensity', v)} color="positive" />
+              <Chip label="Flavors Popping" checked={(slot.flavorProfile as any).flavorsPopping ?? false} onChange={(v) => onUpdateFP('flavorsPopping', v)} color="positive" />
             </div>
           </div>
           <div>
@@ -917,7 +941,7 @@ export default function Compare() {
     coffeeId: '', brewDate: new Date().toISOString().split('T')[0],
     brewMethod: 'Pour Over', brewingDevice: '', filter: '',
     brewerShape: undefined, bypass: undefined,
-    grinder: '', grindSetting: 0, grindSize: '',
+    grinder: '', grindSetting: 0, grindSize: '', rpmSpeed: undefined,
     coffeeDose: 15, waterAmount: 250, waterTempF: 205, waterPPM: 60,
     waterRecipe: '', finalBrewWeight: undefined, tds: undefined,
     isDiluted: false, dilutionAmount: undefined,
@@ -1048,7 +1072,7 @@ export default function Compare() {
     pourHeight?: string; pourSpeed?: string; pourSpeedMlS?: string;
     agitation?: string; melodrip?: boolean; doubleBloom?: boolean; varyingPourSpeed?: boolean;
     samoBloom?: boolean; immersedBloom?: boolean; multipleTemperatures?: boolean; multipleTemperaturesType?: string;
-    immersionTime?: number;
+    immersionTime?: number; agitateBloom?: boolean; swirl?: boolean; rpmSpeed?: number;
     daysOff?: number;
   };
 
@@ -1088,6 +1112,9 @@ export default function Compare() {
       multipleTemperatures: b.pourOverDetails?.multipleTemperatures,
       multipleTemperaturesType: b.pourOverDetails?.multipleTemperaturesType,
       immersionTime: b.pourOverDetails?.immersionTime,
+      agitateBloom: b.pourOverDetails?.agitateBloom,
+      swirl: b.pourOverDetails?.swirl,
+      rpmSpeed: b.rpmSpeed,
       daysOff: coffee?.roastDate ? daysOffRoast(coffee.roastDate, b.brewDate) : undefined,
     };
   }
@@ -1123,6 +1150,9 @@ export default function Compare() {
         multipleTemperatures: s.pourOverDetails.multipleTemperatures,
         multipleTemperaturesType: s.pourOverDetails.multipleTemperaturesType,
         immersionTime: s.pourOverDetails.immersionTime,
+        agitateBloom: s.pourOverDetails.agitateBloom,
+        swirl: s.pourOverDetails.swirl,
+        rpmSpeed: s.rpmSpeed,
       }));
 
   const hasData = compBrews.length >= 2 && (
@@ -1494,6 +1524,7 @@ Return ONLY a JSON array, no markdown, no explanation:
             {rowVisible(compBrews.map(b => b.grinder)) && <CompareRow label="Grinder" values={compBrews.map(b => b.grinder)} />}
             {rowVisible(compBrews.map(b => b.grindSetting)) && <CompareRow label="Grind Setting" values={compBrews.map(b => b.grindSetting)} numeric />}
             {rowVisible(compBrews.map(b => b.grindSize)) && <CompareRow label="Grind Size" values={compBrews.map(b => b.grindSize)} />}
+            {rowVisible(compBrews.map(b => b.rpmSpeed)) && <CompareRow label="RPM Speed" values={compBrews.map(b => b.rpmSpeed ?? '—')} numeric unit=" rpm" />}
           </Card>
 
           {/* Recipe Parameters */}
@@ -1523,6 +1554,8 @@ Return ONLY a JSON array, no markdown, no explanation:
               {rowVisible(compBrews.map(b => b.varyingPourSpeed === undefined ? undefined : b.varyingPourSpeed ? 'Yes' : 'No')) && <CompareRow label="Varying Speed" values={compBrews.map(b => b.varyingPourSpeed === undefined ? '—' : b.varyingPourSpeed ? 'Yes' : 'No')} />}
               {rowVisible(compBrews.map(b => b.samoBloom === undefined ? undefined : b.samoBloom ? 'Yes' : 'No')) && <CompareRow label="Samo Bloom" values={compBrews.map(b => b.samoBloom === undefined ? '—' : b.samoBloom ? 'Yes' : 'No')} />}
               {rowVisible(compBrews.map(b => b.immersedBloom === undefined ? undefined : b.immersedBloom ? 'Yes' : 'No')) && <CompareRow label="Immersed Bloom" values={compBrews.map(b => b.immersedBloom === undefined ? '—' : b.immersedBloom ? 'Yes' : 'No')} />}
+              {rowVisible(compBrews.map(b => b.agitateBloom === undefined ? undefined : b.agitateBloom ? 'Yes' : 'No')) && <CompareRow label="Agitate Bloom" values={compBrews.map(b => b.agitateBloom === undefined ? '—' : b.agitateBloom ? 'Yes' : 'No')} />}
+              {rowVisible(compBrews.map(b => b.swirl === undefined ? undefined : b.swirl ? 'Yes' : 'No')) && <CompareRow label="Swirl" values={compBrews.map(b => b.swirl === undefined ? '—' : b.swirl ? 'Yes' : 'No')} />}
               {rowVisible(compBrews.map(b => b.immersionTime)) && <CompareRow label="Immersion Time" values={compBrews.map(b => b.immersionTime ?? '—')} numeric unit=" min" />}
               {rowVisible(compBrews.map(b => b.multipleTemperatures === undefined ? undefined : b.multipleTemperatures ? (b.multipleTemperaturesType ?? 'Yes') : 'No')) && <CompareRow label="Multiple Temps" values={compBrews.map(b => b.multipleTemperatures === undefined ? '—' : b.multipleTemperatures ? (b.multipleTemperaturesType ?? 'Yes') : 'No')} />}
             </Card>
@@ -1624,7 +1657,7 @@ Return ONLY a JSON array, no markdown, no explanation:
 
           {/* Reflection & Next Brew */}
           {compBrews.some(b =>
-            b.fp.moreAcidity || b.fp.moreSweetness || b.fp.moreClarity || b.fp.moreFlorality || b.fp.moreBody || (b.fp as any).moreIntensity ||
+            b.fp.moreAcidity || b.fp.moreSweetness || b.fp.moreClarity || b.fp.moreFlorality || b.fp.moreBody || (b.fp as any).moreIntensity || (b.fp as any).flavorsPopping ||
             b.fp.lessBitterness || b.fp.lessAstringency || b.fp.lessSourness || b.fp.lessMuddled || (b.fp as any).lessIntensity ||
             b.fp.suggestedChange
           ) && (
@@ -1639,6 +1672,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                     b.fp.moreFlorality && 'Florality',
                     b.fp.moreBody && 'Body',
                     (b.fp as any).moreIntensity && 'Intensity',
+                    (b.fp as any).flavorsPopping && 'Flavors Popping',
                   ].filter(Boolean) as string[];
                   const lessOf = [
                     b.fp.lessBitterness && 'Bitterness',

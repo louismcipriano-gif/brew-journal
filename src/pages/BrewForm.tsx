@@ -6,7 +6,7 @@ import {
   Button, Card, Input, Select, Toggle, Slider, Chip, SectionTitle, ScoreRing, MicButton,
 } from '../components/ui';
 import {
-  calcBrewScore, calcEY, fToC, daysOffRoast, brewRatio, bloomRatio, espressoRatio, formatDate,
+  calcBrewScore, calcEY, fToC, daysOffRoast, bloomRatio, espressoRatio, formatDate,
 } from '../utils';
 import type {
   Brew, BrewMethod, PourOverDetails, EspressoDetails, FlavorProfile,
@@ -104,6 +104,7 @@ const defaultFlavorProfile: FlavorProfile = {
   vegetal: 1,
   harsh: 1,
   thinness: 1,
+  muddled: 1,
   flavorNotes: '',
   perceivedExtraction: 'Balanced',
   moreAcidity: false,
@@ -112,6 +113,7 @@ const defaultFlavorProfile: FlavorProfile = {
   moreFlorality: false,
   moreBody: false,
   moreIntensity: false,
+  flavorsPopping: false,
   lessBitterness: false,
   lessAstringency: false,
   lessSourness: false,
@@ -283,6 +285,12 @@ export default function BrewForm() {
 
   useEffect(() => {
     if (isPourOverMethod(form.brewMethod)) {
+      setForm((f) => ({
+        ...f,
+        pourOverDetails: f.pourOverDetails ?? defaultPourOver,
+        espressoDetails: undefined,
+      }));
+    } else if (form.brewMethod === 'AeroPress') {
       setForm((f) => ({
         ...f,
         pourOverDetails: f.pourOverDetails ?? defaultPourOver,
@@ -475,7 +483,8 @@ export default function BrewForm() {
       if (v.moreClarity    != null) fp.moreClarity    = v.moreClarity;
       if (v.moreFlorality  != null) fp.moreFlorality  = v.moreFlorality;
       if (v.moreBody       != null) fp.moreBody       = v.moreBody;
-      if ((v as any).moreIntensity != null) fp.moreIntensity = (v as any).moreIntensity;
+      if ((v as any).moreIntensity  != null) fp.moreIntensity  = (v as any).moreIntensity;
+      if ((v as any).flavorsPopping != null) fp.flavorsPopping = (v as any).flavorsPopping;
       if (v.lessBitterness != null) fp.lessBitterness = v.lessBitterness;
       if (v.lessAstringency!= null) fp.lessAstringency= v.lessAstringency;
       if (v.lessSourness   != null) fp.lessSourness   = v.lessSourness;
@@ -1070,8 +1079,29 @@ export default function BrewForm() {
                   const s = parseFloat(e.target.value) || 0;
                   setForm((f) => ({ ...f, grindSetting: s, grindSize: resolveGrindSize(f.grinder, s) ?? f.grindSize }));
                 }} hint="Clicks / steps / dial position" />
+              {form.grinder.toLowerCase().includes('sculptor') && (
+                <Input label="RPM Speed" type="number" min={0} step={50} value={form.rpmSpeed ?? 800} onChange={(e) => set('rpmSpeed', parseFloat(e.target.value) || undefined)} suffix="rpm" hint="Grinder motor speed" />
+              )}
               <Input label="Coffee Dose" type="number" min={0} step={0.1} value={form.coffeeDose || ''} onChange={(e) => set('coffeeDose', parseFloat(e.target.value) || 0)} suffix="g" />
               <Input label="Water Amount" type="number" min={0} step={1} value={form.waterAmount || ''} onChange={(e) => set('waterAmount', parseFloat(e.target.value) || 0)} suffix="g" />
+              {form.coffeeDose > 0 && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Brew Ratio (1:x)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={0.1}
+                    value={form.waterAmount > 0 ? parseFloat((form.waterAmount / form.coffeeDose).toFixed(1)) : ''}
+                    onChange={(e) => {
+                      const r = parseFloat(e.target.value);
+                      if (!isNaN(r) && r > 0) set('waterAmount', Math.round(form.coffeeDose * r));
+                    }}
+                    placeholder="e.g. 15"
+                    className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors"
+                  />
+                  {form.waterAmount > 0 && <span className="text-xs text-brew-faint">→ {form.waterAmount}g water</span>}
+                </div>
+              )}
               <Input label="Water Temp" type="number" min={150} max={212} value={form.waterTempF || ''} onChange={(e) => set('waterTempF', parseFloat(e.target.value) || 0)} suffix="°F" />
               <Input label="Recipe Name" value={form.brewRecipeName} onChange={(e) => set('brewRecipeName', e.target.value)} placeholder="e.g. Hoffmann 4-6" />
             </div>
@@ -1169,6 +1199,9 @@ export default function BrewForm() {
               }}
               hint="Clicks / steps / dial position"
             />
+            {form.grinder.toLowerCase().includes('sculptor') && (
+              <Input label="RPM Speed" type="number" min={0} step={50} value={form.rpmSpeed ?? 800} onChange={(e) => set('rpmSpeed', parseFloat(e.target.value) || undefined)} suffix="rpm" hint="Grinder motor speed" />
+            )}
             <Select
               label="Grind Size"
               value={form.grindSize ?? ''}
@@ -1243,14 +1276,27 @@ export default function BrewForm() {
               onChange={(e) => set('waterAmount', parseFloat(e.target.value) || 0)}
               suffix="g"
             />
+            {form.coffeeDose > 0 && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Brew Ratio (1:x)</label>
+                <input
+                  type="number"
+                  min={1}
+                  step={0.1}
+                  value={form.waterAmount > 0 ? parseFloat((form.waterAmount / form.coffeeDose).toFixed(1)) : ''}
+                  onChange={(e) => {
+                    const r = parseFloat(e.target.value);
+                    if (!isNaN(r) && r > 0) set('waterAmount', Math.round(form.coffeeDose * r));
+                  }}
+                  placeholder="e.g. 15"
+                  className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors"
+                />
+                {form.waterAmount > 0 && (
+                  <span className="text-xs text-brew-faint">→ {form.waterAmount}g water</span>
+                )}
+              </div>
+            )}
           </div>
-          {form.coffeeDose > 0 && form.waterAmount > 0 && (
-            <div className="text-sm text-brew-muted flex items-center gap-2">
-              Brew Ratio:
-              <span className="text-brew-primary-light font-semibold">{brewRatio(form.waterAmount, form.coffeeDose)}</span>
-              <span className="text-brew-faint text-xs">({(form.waterAmount / form.coffeeDose).toFixed(1)}:1)</span>
-            </div>
-          )}
 
           {/* Dilution */}
           <div className="flex flex-col gap-3 pt-2 border-t border-brew-border">
@@ -1531,6 +1577,18 @@ export default function BrewForm() {
                 description="Bloom step done immersed (no drawdown)"
               />
               <Toggle
+                label="Agitate Bloom"
+                checked={!!form.pourOverDetails.agitateBloom}
+                onChange={(v) => setPO('agitateBloom', v)}
+                description="Stir or swirl during bloom"
+              />
+              <Toggle
+                label="Swirl"
+                checked={!!form.pourOverDetails.swirl}
+                onChange={(v) => setPO('swirl', v)}
+                description="Swirl brewer during brew"
+              />
+              <Toggle
                 label="Multiple Temperatures"
                 checked={!!form.pourOverDetails.multipleTemperatures}
                 onChange={(v) => setPO('multipleTemperatures', v)}
@@ -1554,6 +1612,47 @@ export default function BrewForm() {
                   ))}
                 </div>
               )}
+            </div>
+          </Card>
+        )}
+
+        {/* ── AeroPress Details ─────────────────────────────── */}
+        {form.brewMethod === 'AeroPress' && form.pourOverDetails && (
+          <Card className="p-6 flex flex-col gap-4">
+            <SectionTitle>AeroPress Details</SectionTitle>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Immersion Time"
+                type="number"
+                min={0}
+                step={0.25}
+                value={form.pourOverDetails.immersionTime ?? ''}
+                onChange={(e) => setPO('immersionTime', parseFloat(e.target.value) || undefined)}
+                suffix="min"
+              />
+              <Input
+                label="Total Brew Time"
+                type="number"
+                min={0}
+                step={0.25}
+                value={form.pourOverDetails.totalBrewTime || ''}
+                onChange={(e) => setPO('totalBrewTime', parseFloat(e.target.value) || 0)}
+                suffix="min"
+              />
+            </div>
+            <div className="flex flex-col gap-3 pt-2">
+              <Toggle
+                label="Agitate Bloom"
+                checked={!!form.pourOverDetails.agitateBloom}
+                onChange={(v) => setPO('agitateBloom', v)}
+                description="Stir or swirl during bloom"
+              />
+              <Toggle
+                label="Swirl"
+                checked={!!form.pourOverDetails.swirl}
+                onChange={(v) => setPO('swirl', v)}
+                description="Swirl brewer during brew"
+              />
             </div>
           </Card>
         )}
@@ -1732,6 +1831,7 @@ export default function BrewForm() {
               <Slider label="Vegetal" value={form.flavorProfile.vegetal ?? 1} onChange={(v) => setFP('vegetal', v)} negative />
               <Slider label="Harsh" value={form.flavorProfile.harsh ?? 1} onChange={(v) => setFP('harsh', v)} negative />
               <Slider label="Thin-ness" value={form.flavorProfile.thinness ?? 1} onChange={(v) => setFP('thinness', v)} negative />
+              <Slider label="Muddled" value={(form.flavorProfile as any).muddled ?? 1} onChange={(v) => setFP('muddled', v)} negative />
             </div>
           </div>
 
@@ -1791,6 +1891,7 @@ export default function BrewForm() {
               <Chip label="Florality" checked={form.flavorProfile.moreFlorality} onChange={(v) => setFP('moreFlorality', v)} color="positive" />
               <Chip label="Body" checked={form.flavorProfile.moreBody} onChange={(v) => setFP('moreBody', v)} color="positive" />
               <Chip label="Intensity" checked={form.flavorProfile.moreIntensity ?? false} onChange={(v) => setFP('moreIntensity', v)} color="positive" />
+              <Chip label="Flavors Popping" checked={(form.flavorProfile as any).flavorsPopping ?? false} onChange={(v) => setFP('flavorsPopping', v)} color="positive" />
             </div>
           </div>
 

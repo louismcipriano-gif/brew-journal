@@ -77,6 +77,8 @@ export interface PourOverDetails {
   multipleTemperaturesType?: 'Cooler Bloom' | 'Cooler Finish' | 'Both';
   immersedBloom?: boolean;
   immersionTime?: number;
+  agitateBloom?: boolean;
+  swirl?: boolean;
 }
 
 export interface EspressoDetails {
@@ -99,6 +101,7 @@ export interface FlavorProfile {
   vegetal: number;
   harsh: number;
   thinness: number;
+  muddled: number;
   flavorNotes: string;
   perceivedExtraction: PerceivedExtraction;
   moreAcidity: boolean;
@@ -107,6 +110,7 @@ export interface FlavorProfile {
   moreFlorality: boolean;
   moreBody: boolean;
   moreIntensity: boolean;
+  flavorsPopping: boolean;
   lessBitterness: boolean;
   lessAstringency: boolean;
   lessSourness: boolean;
@@ -131,6 +135,7 @@ export interface Brew {
   grinder: string;
   grindSetting: number;
   grindSize?: string;
+  rpmSpeed?: number;
   brewingDevice: string;
   filter?: string;
   brewerShape?: 'Cone' | 'Flat';

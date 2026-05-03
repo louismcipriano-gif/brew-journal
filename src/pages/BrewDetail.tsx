@@ -46,6 +46,7 @@ export default function BrewDetail() {
     ...((brew.flavorProfile as any).vegetal > 1 ? [{ attr: 'Vegetal', value: (brew.flavorProfile as any).vegetal }] : []),
     ...((brew.flavorProfile as any).harsh > 1 ? [{ attr: 'Harsh', value: (brew.flavorProfile as any).harsh }] : []),
     ...((brew.flavorProfile as any).thinness > 1 ? [{ attr: 'Thin-ness', value: (brew.flavorProfile as any).thinness }] : []),
+    ...((brew.flavorProfile as any).muddled > 1 ? [{ attr: 'Muddled', value: (brew.flavorProfile as any).muddled }] : []),
   ];
 
   function handleDelete() {
@@ -62,6 +63,7 @@ export default function BrewDetail() {
     brew.flavorProfile.moreFlorality && 'Florality',
     brew.flavorProfile.moreBody && 'Body',
     (brew.flavorProfile as any).moreIntensity && 'Intensity',
+    (brew.flavorProfile as any).flavorsPopping && 'Flavors Popping',
   ].filter(Boolean) as string[];
 
   const lessOf = [
@@ -165,6 +167,7 @@ export default function BrewDetail() {
                 { label: 'Grinder', value: brew.grinder || '—' },
                 { label: 'Grind Setting', value: brew.grindSetting || '—' },
                 { label: 'Grind Size', value: brew.grindSize || '—' },
+                ...((brew as any).rpmSpeed ? [{ label: 'RPM Speed', value: `${(brew as any).rpmSpeed} rpm` }] : []),
                 { label: 'Coffee Dose', value: `${brew.coffeeDose}g` },
                 { label: 'Water', value: `${brew.waterAmount}g` },
                 { label: 'Brew Ratio', value: brewRatio(brew.waterAmount, brew.coffeeDose) },
