@@ -40,6 +40,7 @@ export default function BrewDetail() {
     { attr: 'Clarity', value: brew.flavorProfile.clarity },
     { attr: 'Juiciness', value: brew.flavorProfile.juiciness },
     { attr: 'Finish', value: brew.flavorProfile.finish },
+    ...((brew.flavorProfile as any).flavorsPopping > 1 ? [{ attr: 'Flavors Popping', value: (brew.flavorProfile as any).flavorsPopping }] : []),
     { attr: 'Astringency', value: brew.flavorProfile.astringency },
     { attr: 'Sourness', value: brew.flavorProfile.sourness },
     ...((brew.flavorProfile as any).funkiness > 1 ? [{ attr: 'Funkiness', value: (brew.flavorProfile as any).funkiness }] : []),
@@ -63,7 +64,7 @@ export default function BrewDetail() {
     brew.flavorProfile.moreFlorality && 'Florality',
     brew.flavorProfile.moreBody && 'Body',
     (brew.flavorProfile as any).moreIntensity && 'Intensity',
-    (brew.flavorProfile as any).flavorsPopping && 'Flavors Popping',
+    ((brew.flavorProfile as any).flavorsPopping ?? 1) >= 4 && 'Flavors Popping',
   ].filter(Boolean) as string[];
 
   const lessOf = [

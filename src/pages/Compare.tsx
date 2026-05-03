@@ -114,7 +114,8 @@ const FLAVOR_DIMS = [
   { key: 'florality', label: 'Florality' },
   { key: 'clarity',   label: 'Clarity'   },
   { key: 'juiciness', label: 'Juiciness' },
-  { key: 'finish',    label: 'Finish'    },
+  { key: 'finish',         label: 'Finish'          },
+  { key: 'flavorsPopping', label: 'Flavors Popping' },
 ] as const;
 
 const NEG_DIMS = ['astringency', 'sourness', 'funkiness', 'vegetal', 'harsh', 'thinness', 'muddled'] as const;
@@ -125,7 +126,7 @@ const defaultFP = (): FlavorProfile => ({
   astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1, thinness: 1, muddled: 1,
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
-  moreFlorality: false, moreBody: false, moreIntensity: false, flavorsPopping: false,
+  moreFlorality: false, moreBody: false, moreIntensity: false, flavorsPopping: 1,
   lessBitterness: false, lessAstringency: false, lessSourness: false,
   lessMuddled: false, lessIntensity: false, suggestedChange: '',
 });
@@ -871,7 +872,7 @@ function SlotForm({
               <Chip label="Florality" checked={slot.flavorProfile.moreFlorality}           onChange={(v) => onUpdateFP('moreFlorality', v)} color="positive" />
               <Chip label="Body"      checked={slot.flavorProfile.moreBody}                onChange={(v) => onUpdateFP('moreBody', v)}      color="positive" />
               <Chip label="Intensity" checked={(slot.flavorProfile as any).moreIntensity ?? false} onChange={(v) => onUpdateFP('moreIntensity', v)} color="positive" />
-              <Chip label="Flavors Popping" checked={(slot.flavorProfile as any).flavorsPopping ?? false} onChange={(v) => onUpdateFP('flavorsPopping', v)} color="positive" />
+              <Chip label="Flavors Popping" checked={((slot.flavorProfile as any).flavorsPopping ?? 1) >= 4} onChange={(v) => onUpdateFP('flavorsPopping', v ? 5 : 1)} color="positive" />
             </div>
           </div>
           <div>
@@ -1657,7 +1658,7 @@ Return ONLY a JSON array, no markdown, no explanation:
 
           {/* Reflection & Next Brew */}
           {compBrews.some(b =>
-            b.fp.moreAcidity || b.fp.moreSweetness || b.fp.moreClarity || b.fp.moreFlorality || b.fp.moreBody || (b.fp as any).moreIntensity || (b.fp as any).flavorsPopping ||
+            b.fp.moreAcidity || b.fp.moreSweetness || b.fp.moreClarity || b.fp.moreFlorality || b.fp.moreBody || (b.fp as any).moreIntensity || ((b.fp as any).flavorsPopping ?? 1) >= 4 ||
             b.fp.lessBitterness || b.fp.lessAstringency || b.fp.lessSourness || b.fp.lessMuddled || (b.fp as any).lessIntensity ||
             b.fp.suggestedChange
           ) && (
@@ -1672,7 +1673,7 @@ Return ONLY a JSON array, no markdown, no explanation:
                     b.fp.moreFlorality && 'Florality',
                     b.fp.moreBody && 'Body',
                     (b.fp as any).moreIntensity && 'Intensity',
-                    (b.fp as any).flavorsPopping && 'Flavors Popping',
+                    ((b.fp as any).flavorsPopping ?? 1) >= 4 && 'Flavors Popping',
                   ].filter(Boolean) as string[];
                   const lessOf = [
                     b.fp.lessBitterness && 'Bitterness',

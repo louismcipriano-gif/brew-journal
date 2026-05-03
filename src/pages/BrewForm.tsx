@@ -113,7 +113,7 @@ const defaultFlavorProfile: FlavorProfile = {
   moreFlorality: false,
   moreBody: false,
   moreIntensity: false,
-  flavorsPopping: false,
+  flavorsPopping: 1,
   lessBitterness: false,
   lessAstringency: false,
   lessSourness: false,
@@ -1819,6 +1819,7 @@ export default function BrewForm() {
               <Slider label="Clarity" value={form.flavorProfile.clarity} onChange={(v) => setFP('clarity', v)} />
               <Slider label="Juiciness" value={form.flavorProfile.juiciness} onChange={(v) => setFP('juiciness', v)} />
               <Slider label="Finish" value={form.flavorProfile.finish} onChange={(v) => setFP('finish', v)} />
+              <Slider label="Flavors Popping" value={(form.flavorProfile as any).flavorsPopping ?? 1} onChange={(v) => setFP('flavorsPopping', v)} />
             </div>
           </div>
 
@@ -1891,7 +1892,7 @@ export default function BrewForm() {
               <Chip label="Florality" checked={form.flavorProfile.moreFlorality} onChange={(v) => setFP('moreFlorality', v)} color="positive" />
               <Chip label="Body" checked={form.flavorProfile.moreBody} onChange={(v) => setFP('moreBody', v)} color="positive" />
               <Chip label="Intensity" checked={form.flavorProfile.moreIntensity ?? false} onChange={(v) => setFP('moreIntensity', v)} color="positive" />
-              <Chip label="Flavors Popping" checked={(form.flavorProfile as any).flavorsPopping ?? false} onChange={(v) => setFP('flavorsPopping', v)} color="positive" />
+              <Chip label="Flavors Popping" checked={((form.flavorProfile as any).flavorsPopping ?? 1) >= 4} onChange={(v) => setFP('flavorsPopping', v ? 5 : 1)} color="positive" />
             </div>
           </div>
 
