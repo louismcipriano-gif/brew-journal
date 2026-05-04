@@ -141,7 +141,7 @@ export default function BrewDetail() {
             )}
           </div>
           <div className="mt-1 text-sm flex items-center gap-3 flex-wrap">
-            {score !== null && <span style={{ color: scoreColor(score) }}>{scoreLabel(score)} · {score.toFixed(1)}/10</span>}
+            {score !== null && <span style={{ color: scoreColor(score) }}>{scoreLabel(score)} · {score.toFixed(1)}/5</span>}
             {brew.extractionYield != null && (() => {
               const ey = brew.extractionYield;
               const color = ey >= 18 && ey <= 22 ? '#2d6e4e' : ey < 18 ? '#b87d28' : '#9b3328';
