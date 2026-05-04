@@ -14,7 +14,7 @@ import type {
 } from '../types';
 import { parseVoiceWithClaudeStream } from '../utils/parseVoiceWithClaude';
 import type { VoiceBrewFields } from '../utils/parseVoiceWithClaude';
-import { streamSuggestion, buildPreBrewPrompt, HAIKU_MODEL, SONNET_MODEL } from '../utils/aiSuggestions';
+import { streamSuggestion, buildPreBrewPrompt, BREW_EXPERT_SYSTEM, HAIKU_MODEL, SONNET_MODEL } from '../utils/aiSuggestions';
 import type { SuggestionModel } from '../utils/aiSuggestions';
 import { getApiKey } from './Settings';
 
@@ -517,9 +517,12 @@ export default function BrewForm() {
         brewDate: b.brewDate,
         brewingDevice: b.brewingDevice,
         grindSetting: b.grindSetting,
+        grindSize: b.grindSize,
+        rpmSpeed: (b as any).rpmSpeed,
         coffeeDose: b.coffeeDose,
         waterAmount: b.waterAmount,
         waterTempF: b.waterTempF,
+        waterPPM: b.waterPPM,
         brewScore: b.brewScore,
         perceivedExtraction: b.flavorProfile?.perceivedExtraction,
         flavorNotes: b.flavorProfile?.flavorNotes,
@@ -527,7 +530,17 @@ export default function BrewForm() {
         sweetness: b.flavorProfile?.sweetness,
         clarity: b.flavorProfile?.clarity,
         body: b.flavorProfile?.body,
+        juiciness: b.flavorProfile?.juiciness,
+        finish: b.flavorProfile?.finish,
+        astringency: b.flavorProfile?.astringency,
+        sourness: b.flavorProfile?.sourness,
+        suggestedChange: b.flavorProfile?.suggestedChange,
+        pourOverDetails: b.pourOverDetails,
       }));
+
+    const daysOff = selectedCoffee.roastDate
+      ? daysOffRoast(selectedCoffee.roastDate, form.brewDate)
+      : undefined;
 
     const prompt = buildPreBrewPrompt(
       {
@@ -540,6 +553,7 @@ export default function BrewForm() {
         varietal: selectedCoffee.varietal,
         elevation: selectedCoffee.elevation,
         tastingNotes: selectedCoffee.tastingNotes,
+        daysOffRoast: daysOff ?? undefined,
       },
       intent,
       brewHistory,
@@ -553,6 +567,7 @@ export default function BrewForm() {
         intentModel,
         (delta) => setIntentResponse((prev) => prev + delta),
         getApiKey() ?? undefined,
+        BREW_EXPERT_SYSTEM,
       );
     } catch (err: any) {
       setIntentResponse(`Error: ${err.message || 'Something went wrong. Check your API key.'}`);
