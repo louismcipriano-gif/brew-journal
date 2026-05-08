@@ -105,6 +105,7 @@ const defaultFlavorProfile: FlavorProfile = {
   harsh: 1,
   thinness: 1,
   muddled: 1,
+  texture: 3, fruit: 3, chocolateCaramel: 3,
   flavorNotes: '',
   perceivedExtraction: 'Balanced',
   moreAcidity: false,
@@ -113,7 +114,7 @@ const defaultFlavorProfile: FlavorProfile = {
   moreFlorality: false,
   moreBody: false,
   moreIntensity: false,
-  flavorsPopping: 1,
+  flavorsPopping: 3,
   lessBitterness: false,
   lessAstringency: false,
   lessSourness: false,
@@ -485,6 +486,9 @@ export default function BrewForm() {
       if (v.moreBody       != null) fp.moreBody       = v.moreBody;
       if ((v as any).moreIntensity  != null) fp.moreIntensity  = (v as any).moreIntensity;
       if ((v as any).flavorsPopping != null) fp.flavorsPopping = (v as any).flavorsPopping;
+      if ((v as any).texture != null) fp.texture = clamp((v as any).texture);
+      if ((v as any).fruit != null) fp.fruit = clamp((v as any).fruit);
+      if ((v as any).chocolateCaramel != null) fp.chocolateCaramel = clamp((v as any).chocolateCaramel);
       if (v.lessBitterness != null) fp.lessBitterness = v.lessBitterness;
       if (v.lessAstringency!= null) fp.lessAstringency= v.lessAstringency;
       if (v.lessSourness   != null) fp.lessSourness   = v.lessSourness;
@@ -1834,7 +1838,10 @@ export default function BrewForm() {
               <Slider label="Clarity" value={form.flavorProfile.clarity} onChange={(v) => setFP('clarity', v)} />
               <Slider label="Juiciness" value={form.flavorProfile.juiciness} onChange={(v) => setFP('juiciness', v)} />
               <Slider label="Finish" value={form.flavorProfile.finish} onChange={(v) => setFP('finish', v)} />
-              <Slider label="Flavors Popping" value={(form.flavorProfile as any).flavorsPopping ?? 1} onChange={(v) => setFP('flavorsPopping', v)} />
+              <Slider label="Flavors Popping" value={(form.flavorProfile as any).flavorsPopping ?? 3} onChange={(v) => setFP('flavorsPopping', v)} />
+              <Slider label="Texture" value={(form.flavorProfile as any).texture ?? 3} onChange={(v) => setFP('texture', v)} />
+              <Slider label="Fruit" value={(form.flavorProfile as any).fruit ?? 3} onChange={(v) => setFP('fruit', v)} />
+              <Slider label="Chocolates / Caramels" value={(form.flavorProfile as any).chocolateCaramel ?? 3} onChange={(v) => setFP('chocolateCaramel', v)} />
             </div>
           </div>
 

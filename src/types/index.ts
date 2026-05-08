@@ -102,6 +102,9 @@ export interface FlavorProfile {
   harsh: number;
   thinness: number;
   muddled: number;
+  texture: number;
+  fruit: number;
+  chocolateCaramel: number;
   flavorNotes: string;
   perceivedExtraction: PerceivedExtraction;
   moreAcidity: boolean;
@@ -199,6 +202,7 @@ export interface SavedRecipe {
   waterRecipe: string;
   recipeDetails: string;
   accentuates?: RecipeAccentuates[];
+  idealCoffeeTypes?: string[];
   grindSize?: string;
   grinderEntries?: GrinderEntry[];
   isDiluted?: boolean;

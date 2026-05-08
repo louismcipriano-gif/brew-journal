@@ -21,6 +21,13 @@ const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
 const POUR_STYLES = ['Circular', 'Center', 'Hybrid'] as const;
 const ACCENTUATES: RecipeAccentuates[] = ['Sweetness', 'Acidity', 'Clarity', 'Juiciness', 'Texture', 'Body', 'Balance', 'Extraction', 'Low Extraction', 'Florality', 'Tame'];
+
+const IDEAL_COFFEE_TYPES = [
+  'Washed Light Roast',
+  'Natural Process',
+  'Experimental Process',
+  'Medium / Dark Roast',
+] as const;
 const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 const BREWING_DEVICES = [
@@ -91,6 +98,7 @@ const blankRecipe: Omit<SavedRecipe, 'id' | 'createdAt'> = {
   waterRecipe: '',
   recipeDetails: '',
   accentuates: [],
+  idealCoffeeTypes: [],
   grindSize: '',
   grinderEntries: [],
   isDiluted: false,
@@ -135,6 +143,7 @@ export function RecipeForm() {
           waterRecipe: existing.waterRecipe,
           recipeDetails: existing.recipeDetails,
           accentuates: existing.accentuates ?? [],
+          idealCoffeeTypes: existing.idealCoffeeTypes ?? [],
           grindSize: existing.grindSize ?? '',
           grinderEntries: existing.grinderEntries ?? [],
           isDiluted: existing.isDiluted ?? false,
@@ -538,6 +547,33 @@ export function RecipeForm() {
                   }`}
                 >
                   {active ? '✓ ' : ''}{a}
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Ideal Coffee Type */}
+        <Card className="p-4 flex flex-col gap-3">
+          <SectionTitle>Ideal Coffee Type</SectionTitle>
+          <div className="flex flex-wrap gap-2">
+            {IDEAL_COFFEE_TYPES.map((t) => {
+              const active = (form.idealCoffeeTypes ?? []).includes(t);
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => {
+                    const current = form.idealCoffeeTypes ?? [];
+                    set('idealCoffeeTypes', active ? current.filter((x) => x !== t) : [...current, t]);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+                    active
+                      ? 'bg-brew-primary/15 border-brew-primary text-brew-primary'
+                      : 'border-brew-border text-brew-faint hover:border-brew-muted'
+                  }`}
+                >
+                  {t}
                 </button>
               );
             })}
@@ -1164,6 +1200,13 @@ export function RecipeDetail() {
             })}
           </div>
         )}
+        {recipe.idealCoffeeTypes && recipe.idealCoffeeTypes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {recipe.idealCoffeeTypes.map((t) => (
+              <Badge key={t} variant="default">{t}</Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Apply CTA */}
@@ -1411,9 +1454,15 @@ export default function Recipes() {
   const navigate = useNavigate();
   const { data } = useApp();
   const [filterMethod, setFilterMethod] = useState('');
+  const [filterDevice, setFilterDevice] = useState('');
+  const [filterSource, setFilterSource] = useState('');
+  const [filterCoffeeType, setFilterCoffeeType] = useState('');
 
   const filtered = data.recipes.filter(
-    (r) => !filterMethod || r.brewMethod === filterMethod,
+    (r) => (!filterMethod || r.brewMethod === filterMethod)
+      && (!filterDevice || r.brewingDevice === filterDevice)
+      && (!filterSource || r.source.toLowerCase().includes(filterSource.toLowerCase()))
+      && (!filterCoffeeType || (r.idealCoffeeTypes ?? []).includes(filterCoffeeType)),
   );
 
   const methods = [...new Set(data.recipes.map((r) => r.brewMethod))];
@@ -1432,8 +1481,8 @@ export default function Recipes() {
         </Button>
       </div>
 
-      {methods.length > 1 && (
-        <div className="flex gap-3">
+      {(methods.length > 1 || data.recipes.length > 0) && (
+        <div className="flex flex-wrap gap-3 items-center">
           <Select
             value={filterMethod}
             onChange={(e) => setFilterMethod(e.target.value)}
@@ -1441,9 +1490,29 @@ export default function Recipes() {
             placeholder="All Methods"
             className="max-w-44"
           />
-          {filterMethod && (
-            <button type="button" onClick={() => setFilterMethod('')} className="text-xs text-brew-faint hover:text-brew-muted transition-colors">
-              Clear
+          <Select
+            value={filterDevice}
+            onChange={(e) => setFilterDevice(e.target.value)}
+            options={[...new Set(data.recipes.map((r) => r.brewingDevice).filter(Boolean))].sort().map((d) => ({ value: d, label: d }))}
+            placeholder="All Devices"
+            className="max-w-44"
+          />
+          <Select
+            value={filterCoffeeType}
+            onChange={(e) => setFilterCoffeeType(e.target.value)}
+            options={IDEAL_COFFEE_TYPES.map((t) => ({ value: t, label: t }))}
+            placeholder="All Coffee Types"
+            className="max-w-48"
+          />
+          <Input
+            value={filterSource}
+            onChange={(e) => setFilterSource(e.target.value)}
+            placeholder="Source..."
+            className="max-w-36"
+          />
+          {(filterMethod || filterDevice || filterSource || filterCoffeeType) && (
+            <button type="button" onClick={() => { setFilterMethod(''); setFilterDevice(''); setFilterSource(''); setFilterCoffeeType(''); }} className="text-xs text-brew-faint hover:text-brew-muted transition-colors">
+              Clear filters
             </button>
           )}
         </div>

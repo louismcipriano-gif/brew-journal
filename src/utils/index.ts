@@ -1,11 +1,10 @@
 import type { FlavorProfile } from '../types';
 
 export function calcBrewScore(fp: FlavorProfile): number {
-  // Inputs on 1-5 scale. Output on 1-5 scale.
   const positiveAvg =
-    (fp.acidity + fp.sweetness + fp.body + fp.florality + fp.clarity + fp.juiciness + fp.finish) / 7;
+    (fp.acidity + fp.sweetness + fp.body + fp.florality + fp.clarity + fp.juiciness + fp.finish +
+     ((fp as any).texture ?? 3) + ((fp as any).fruit ?? 3)) / 9;
   const negativeAvg = (fp.astringency + fp.sourness) / 2;
-  // positiveAvg 1-5 maps linearly to 1-5; negative subtracts up to 2 points
   const score = (positiveAvg - 1) + 1 - ((negativeAvg - 1) / 4) * 2;
   return Math.round(Math.max(1, Math.min(5, score)) * 10) / 10;
 }

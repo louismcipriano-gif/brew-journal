@@ -116,6 +116,9 @@ const FLAVOR_DIMS = [
   { key: 'juiciness', label: 'Juiciness' },
   { key: 'finish',         label: 'Finish'          },
   { key: 'flavorsPopping', label: 'Flavors Popping' },
+  { key: 'texture', label: 'Texture' },
+  { key: 'fruit', label: 'Fruit' },
+  { key: 'chocolateCaramel', label: 'Choc/Caramel' },
 ] as const;
 
 const NEG_DIMS = ['astringency', 'sourness', 'funkiness', 'vegetal', 'harsh', 'thinness', 'muddled'] as const;
@@ -124,9 +127,10 @@ const defaultFP = (): FlavorProfile => ({
   acidity: 3, sweetness: 3, body: 3, florality: 3,
   clarity: 3, juiciness: 3, finish: 3,
   astringency: 1, sourness: 1, funkiness: 1, vegetal: 1, harsh: 1, thinness: 1, muddled: 1,
+  texture: 3, fruit: 3, chocolateCaramel: 3,
   flavorNotes: '', perceivedExtraction: 'Balanced',
   moreAcidity: false, moreSweetness: false, moreClarity: false,
-  moreFlorality: false, moreBody: false, moreIntensity: false, flavorsPopping: 1,
+  moreFlorality: false, moreBody: false, moreIntensity: false, flavorsPopping: 3,
   lessBitterness: false, lessAstringency: false, lessSourness: false,
   lessMuddled: false, lessIntensity: false, suggestedChange: '',
 });
