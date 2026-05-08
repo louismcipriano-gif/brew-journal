@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import {
   LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked,
-  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X, GraduationCap,
+  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X, GraduationCap, CalendarDays,
 } from 'lucide-react';
 import { Button } from './ui';
 
@@ -16,16 +16,18 @@ const primaryNav = [
 ];
 
 const moreNav = [
-  { to: '/recipes',       icon: BookMarked,     label: 'Recipes'   },
-  { to: '/water-recipes', icon: Droplets,       label: 'Water'     },
-  { to: '/compare',       icon: GitCompare,     label: 'Compare'   },
-  { to: '/learnings',     icon: GraduationCap,  label: 'Learnings' },
-  { to: '/settings',      icon: Settings2,      label: 'Settings'  },
+  { to: '/recipes',       icon: BookMarked,     label: 'Recipes'    },
+  { to: '/water-recipes', icon: Droplets,       label: 'Water'      },
+  { to: '/compare',       icon: GitCompare,     label: 'Compare'    },
+  { to: '/readiness',     icon: CalendarDays,   label: 'Readiness'  },
+  { to: '/learnings',     icon: GraduationCap,  label: 'Learnings'  },
+  { to: '/settings',      icon: Settings2,      label: 'Settings'   },
 ];
 
 const sidebarNav = [
   { to: '/',              icon: LayoutDashboard, label: 'Dashboard'    },
   { to: '/coffees',       icon: Coffee,          label: 'Coffees'      },
+  { to: '/readiness',     icon: CalendarDays,    label: 'Readiness'    },
   { to: '/brews',         icon: BookOpen,        label: 'Brew Journal' },
   { to: '/recipes',       icon: BookMarked,      label: 'Recipes'      },
   { to: '/water-recipes', icon: Droplets,        label: 'Water'        },
