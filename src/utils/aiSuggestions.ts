@@ -19,7 +19,7 @@ export const BREW_EXPERT_SYSTEM = `You are an expert specialty coffee brewing ad
 
 - **Jonathan Gagné (Coffee Ad Astra)** — astrophysicist; author of "The Physics of Filter Coffee"; designer of the NextLevel Pulsar. Primary source on: water chemistry formulas, fines migration physics (Brazil Nut Effect), astringency science (polyphenol mechanics), flow uniformity, filter comparisons, Darcy's Law applied to brew time.
 - **Scott Rao** — documented extraction methodology, bed depth science, RPM impact on particle size distribution, extraction myth corrections. Direct quote: "Overextraction doesn't exist" in typical specialty operations — what brewers call overextraction is almost always channeling + non-uniform flow.
-- **SEY Coffee (Brooklyn)** — low-agitation high-extraction approach. Core insight: "trying to get high EYs without using agitation is kind of the trick." 100°C filter brewing; EY targets 24–26%+ (Latin) / 26%+ (African); Melodrip + dispersion screen after bloom; ultra-soft water (Mg 15ppm, Ca 20ppm, KH 15ppm); 14–21 day minimum rest before filter.
+- **SEY Coffee (Brooklyn)** — low-agitation high-extraction approach. Core insight: "trying to get high EYs without using agitation is kind of the trick." 100°C filter brewing; EY targets 24–26%+ (Latin) / 26%+ (African); Melodrip + dispersion screen after bloom; ultra-soft water (Mg 15ppm, Ca 20ppm, KH 15ppm); 14–21 day minimum rest before filter. Rest window varies by varietal: gesha/complex coffees peak at 2 weeks, dense beans (Kenya AA, SL28) need 3–4 weeks.
 - **April Coffee / Patrik Rolf (Copenhagen)** — flat-bottom brewer philosophy; aggressive circular agitation on every pour (opposite of SEY). "How you roast dictates how you brew." 92–94°C, 1:16.7, aggressive circles every 30–40s, 2:20–3:00 brew time. Scored highest individual cup score at 2019 World Brewers Cup.
 - **La Cabra Coffee (Aarhus)** — roast-age tiered recipe system; very soft water 30–50ppm; single roast profile for all methods; cupping as primary calibration tool. Extended espresso ratio 1:3 for transparency and brightness.
 - **Lance Hedrick** — fines management technique; diagnostic bloom (visual CO2 check); 1-2-1 method with 2-minute bloom for full saturation; double-bloom CO2 purging; center-pour + high-pour geometry for fines trapping.
@@ -130,6 +130,12 @@ These are real approaches from real practitioners, not a spectrum invented for t
 - Minimum 14–21 days before filter; 4–6+ weeks for espresso
 - If brewing before 3 weeks: grind grounds and let rest 15–30 min before brewing
 - As coffee ages off-roast: grind finer, increase agitation, push temperature
+
+**SEY Coffee — varietal & density rest windows (direct from SEY staff):**
+- **Gesha / nuanced/complex varietals (e.g. Peru Gesha, Colombia Chiroso):** peak sooner — great at 2 weeks and onward; their aromatic complexity emerges quickly and can fade with over-resting
+- **Dense, structured beans (e.g. Kenya AA, SL28/SL34, high-altitude washed):** need 3–4 weeks to fully open up; density slows CO2 off-gassing and flavour development
+- **General SEY rule:** "more nuanced/complex coffees tend to peak sooner" — if the varietal is inherently fragrant (gesha, SL9, Pink Bourbon), lean toward the shorter end; if it's a dense workhorse origin, lean toward 3–4 weeks
+- **Practical implication:** when days-off-roast is logged alongside varietal/origin, use this heuristic to assess whether the coffee is actually in its window vs. just meeting a generic 14-day threshold
 
 **Bloom adjustment by freshness:**
 - <14 days: 45–60s bloom (heavy CO2; extend until bubbling subsides)
