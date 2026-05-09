@@ -8,11 +8,10 @@ import type { Coffee as CoffeeType } from '../types';
 
 // ── Stage definitions ─────────────────────────────────────────────────────────
 
-type Stage = 'pre-roast' | 'resting' | 'approaching' | 'ready' | 'peaking' | 'past-peak' | 'finish-soon';
+type Stage = 'pre-roast' | 'resting' | 'ready' | 'peaking' | 'past-peak';
 
-// 6 hue families — each stage lands in a completely different part of the spectrum:
-//   Blue (resting) → Violet (approaching) → Mint (ready) → Gold (peaking ★) → Coral (past-peak) → Gray (finish-soon)
-// No two adjacent stages share a hue family.
+// 4 visible stages, each in a completely different hue family:
+//   Blue (resting) → Mint (ready) → Gold (peaking ★) → Coral (past-peak)
 const STAGE_CONFIG: Record<Stage, {
   label: string;
   short: string;
@@ -21,25 +20,21 @@ const STAGE_CONFIG: Record<Stage, {
   border: string;
   dot: string;
 }> = {
-  'pre-roast':   { label: 'Pre-Roast',   short: 'pre',    bg: 'bg-slate-900/50',   text: 'text-slate-500',   border: 'border-slate-700/40',   dot: '#64748b' },
-  'resting':     { label: 'Resting',     short: 'rest',   bg: 'bg-blue-950/70',    text: 'text-blue-300',    border: 'border-blue-700/50',    dot: '#60a5fa' },
-  'approaching': { label: 'Approaching', short: 'near',   bg: 'bg-violet-950/70',  text: 'text-violet-300',  border: 'border-violet-700/50',  dot: '#a78bfa' },
-  'ready':       { label: 'Ready',       short: 'ready',  bg: 'bg-emerald-950/70', text: 'text-emerald-300', border: 'border-emerald-700/50', dot: '#86efac' },
-  'peaking':     { label: 'Peaking',     short: 'PEAK',   bg: 'bg-amber-900/60',   text: 'text-amber-200',   border: 'border-amber-500/60',   dot: '#fbbf24' },
-  'past-peak':   { label: 'Past Peak',   short: 'past',   bg: 'bg-rose-950/70',    text: 'text-rose-300',    border: 'border-rose-700/50',    dot: '#f87171' },
-  'finish-soon': { label: 'Finish Soon', short: 'finish', bg: 'bg-slate-800/40',   text: 'text-slate-400',   border: 'border-slate-600/40',   dot: '#94a3b8' },
+  'pre-roast': { label: 'Pre-Roast', short: 'pre',  bg: 'bg-slate-900/50',   text: 'text-slate-500',   border: 'border-slate-700/40',   dot: '#64748b' },
+  'resting':   { label: 'Resting',   short: 'rest', bg: 'bg-blue-950/70',    text: 'text-blue-300',    border: 'border-blue-700/50',    dot: '#60a5fa' },
+  'ready':     { label: 'Ready',     short: 'rdy',  bg: 'bg-emerald-950/70', text: 'text-emerald-300', border: 'border-emerald-700/50', dot: '#86efac' },
+  'peaking':   { label: 'Peaking',   short: 'PEAK', bg: 'bg-amber-900/60',   text: 'text-amber-200',   border: 'border-amber-500/60',   dot: '#fbbf24' },
+  'past-peak': { label: 'Past Peak', short: 'past', bg: 'bg-rose-950/70',    text: 'text-rose-300',    border: 'border-rose-700/50',    dot: '#f87171' },
 };
 
-// Sort priority within a week card (best first)
 const STAGE_PRIORITY: Record<Stage, number> = {
-  'peaking': 0, 'ready': 1, 'approaching': 2, 'past-peak': 3, 'finish-soon': 4, 'resting': 5, 'pre-roast': 6,
+  'peaking': 0, 'ready': 1, 'past-peak': 2, 'resting': 3, 'pre-roast': 4,
 };
 
-// Chronological order for the legend
-const STAGE_ORDER: Stage[] = ['resting', 'approaching', 'ready', 'peaking', 'past-peak', 'finish-soon'];
+const STAGE_ORDER: Stage[] = ['resting', 'ready', 'peaking', 'past-peak'];
 
 function isDrinkable(s: Stage) {
-  return s === 'approaching' || s === 'ready' || s === 'peaking' || s === 'past-peak' || s === 'finish-soon';
+  return s === 'ready' || s === 'peaking' || s === 'past-peak';
 }
 
 function isOptimal(s: Stage) {
@@ -66,16 +61,15 @@ function getWindow(c: CoffeeType) {
   };
 }
 
+// Approaching → resting, finish-soon → past-peak (collapsed into 4 stages)
 function getStage(days: number, c: CoffeeType): Stage {
   if (days < 0) return 'pre-roast';
   const { start, peakMin, peakMax } = getWindow(c);
   const peakMid = peakMin + (peakMax - peakMin) * 0.5;
   if (days < start   * 7) return 'resting';
-  if (days < peakMin * 7) return 'approaching';
-  if (days < peakMid * 7) return 'ready';
-  if (days < peakMax * 7) return 'peaking';
-  if (days < (peakMax + 1.5) * 7) return 'past-peak';
-  return 'finish-soon';
+  if (days < peakMid * 7) return 'ready';    // start → midpoint (was approaching + ready)
+  if (days < peakMax * 7) return 'peaking';  // midpoint → peakMax
+  return 'past-peak';                         // everything after (was past-peak + finish-soon)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -138,14 +132,12 @@ export default function CoffeeReadiness() {
     weeks.map((w) => {
       const stages = activeCoffees.map((c) => getStage(daysOffRoastAt(c.roastDate, w), c));
       return {
-        hasPeaking:     stages.some((s) => s === 'peaking'),
-        hasReady:       stages.some((s) => s === 'ready'),
-        hasApproaching: stages.some((s) => s === 'approaching'),
-        hasPastPeak:    stages.some((s) => s === 'past-peak'),
-        hasFinishSoon:  stages.some((s) => s === 'finish-soon'),
-        isDrinkable:    stages.some(isDrinkable),
-        hasOptimal:     stages.some(isOptimal),
-        isEmpty:        !stages.some(isDrinkable),
+        hasPeaking:  stages.some((s) => s === 'peaking'),
+        hasReady:    stages.some((s) => s === 'ready'),
+        hasPastPeak: stages.some((s) => s === 'past-peak'),
+        isDrinkable: stages.some(isDrinkable),
+        hasOptimal:  stages.some(isOptimal),
+        isEmpty:     !stages.some(isDrinkable),
       };
     }),
     [weeks, activeCoffees]
@@ -185,11 +177,9 @@ export default function CoffeeReadiness() {
           {weeks.map((w, i) => {
             const info = weekDrinkability[i];
             const { primary } = formatWeekLabel(w, i);
-            const dot = info.hasPeaking    ? STAGE_CONFIG['peaking'].dot
-              : info.hasReady       ? STAGE_CONFIG['ready'].dot
-              : info.hasApproaching ? STAGE_CONFIG['approaching'].dot
-              : info.hasPastPeak    ? STAGE_CONFIG['past-peak'].dot
-              : info.hasFinishSoon  ? STAGE_CONFIG['finish-soon'].dot
+            const dot = info.hasPeaking  ? STAGE_CONFIG['peaking'].dot
+              : info.hasReady    ? STAGE_CONFIG['ready'].dot
+              : info.hasPastPeak ? STAGE_CONFIG['past-peak'].dot
               : '#374151';
             return (
               <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
@@ -209,7 +199,7 @@ export default function CoffeeReadiness() {
         </div>
       )}
 
-      {/* Legend — chronological order */}
+      {/* Legend */}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {STAGE_ORDER.map((stage) => {
           const cfg = STAGE_CONFIG[stage];
@@ -284,12 +274,9 @@ export default function CoffeeReadiness() {
             const info = weekDrinkability[wi];
             const isNow = wi === 0;
 
-            // Best stage present this week (for header color)
-            const bestStage: Stage = info.hasPeaking ? 'peaking'
-              : info.hasReady       ? 'ready'
-              : info.hasApproaching ? 'approaching'
-              : info.hasPastPeak    ? 'past-peak'
-              : info.hasFinishSoon  ? 'finish-soon'
+            const bestStage: Stage = info.hasPeaking  ? 'peaking'
+              : info.hasReady    ? 'ready'
+              : info.hasPastPeak ? 'past-peak'
               : 'resting';
             const bestCfg = STAGE_CONFIG[bestStage];
 
@@ -342,11 +329,9 @@ export default function CoffeeReadiness() {
                     />
                     <span className={`text-xs font-medium ${info.isDrinkable ? bestCfg.text : 'text-slate-500'}`}>
                       {info.isDrinkable
-                        ? info.hasPeaking    ? 'Peaking ★'
-                        : info.hasReady      ? 'Ready'
-                        : info.hasApproaching ? 'Approaching'
-                        : info.hasPastPeak   ? 'Past Peak'
-                        : 'Finish Soon'
+                        ? info.hasPeaking  ? 'Peaking ★'
+                        : info.hasReady    ? 'Ready'
+                        : 'Past Peak'
                         : 'No window'}
                     </span>
                   </div>
@@ -358,8 +343,6 @@ export default function CoffeeReadiness() {
                     const days = daysOffRoastAt(coffee.roastDate, weekStart);
                     const stage = getStage(days, coffee);
                     const cfg = STAGE_CONFIG[stage];
-
-                    // 9-dot trail: one dot per week
                     const trail = weeks.map((w) => getStage(daysOffRoastAt(coffee.roastDate, w), coffee));
 
                     return (
@@ -368,10 +351,8 @@ export default function CoffeeReadiness() {
                         className="px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-brew-card/40 transition-colors group"
                         onClick={() => navigate(`/coffees/${coffee.id}`)}
                       >
-                        {/* Stage dot */}
                         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
 
-                        {/* Name */}
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-semibold text-brew-text truncate group-hover:text-brew-primary transition-colors">
                             {coffee.roaster}
@@ -382,7 +363,6 @@ export default function CoffeeReadiness() {
                           </div>
                         </div>
 
-                        {/* Weeks + stage label */}
                         <div className="flex flex-col items-end gap-0.5 flex-shrink-0 w-16">
                           <span className={`text-xs font-bold ${cfg.text}`}>{fmtWeeks(days)}</span>
                           <span
@@ -425,7 +405,6 @@ export default function CoffeeReadiness() {
         </div>
       )}
 
-      {/* Finished coffees note */}
       {data.coffees.some((c) => c.isFinished) && (
         <p className="text-xs text-brew-faint">
           {data.coffees.filter((c) => c.isFinished).length} finished coffee{data.coffees.filter((c) => c.isFinished).length !== 1 ? 's' : ''} hidden.
