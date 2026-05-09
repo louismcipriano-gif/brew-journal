@@ -19,7 +19,7 @@ const moreNav = [
   { to: '/recipes',       icon: BookMarked,     label: 'Recipes'    },
   { to: '/water-recipes', icon: Droplets,       label: 'Water'      },
   { to: '/compare',       icon: GitCompare,     label: 'Compare'    },
-  { to: '/readiness',     icon: CalendarDays,   label: 'Readiness'  },
+  { to: '/readiness',     icon: CalendarDays,   label: 'Calendar'   },
   { to: '/learnings',     icon: GraduationCap,  label: 'Learnings'  },
   { to: '/settings',      icon: Settings2,      label: 'Settings'   },
 ];
@@ -27,7 +27,7 @@ const moreNav = [
 const sidebarNav = [
   { to: '/',              icon: LayoutDashboard, label: 'Dashboard'    },
   { to: '/coffees',       icon: Coffee,          label: 'Coffees'      },
-  { to: '/readiness',     icon: CalendarDays,    label: 'Readiness'    },
+  { to: '/readiness',     icon: CalendarDays,    label: 'Brew Calendar' },
   { to: '/brews',         icon: BookOpen,        label: 'Brew Journal' },
   { to: '/recipes',       icon: BookMarked,      label: 'Recipes'      },
   { to: '/water-recipes', icon: Droplets,        label: 'Water'        },

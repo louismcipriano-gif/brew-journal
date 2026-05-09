@@ -4,30 +4,70 @@ import { ShoppingCart, Snowflake } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, EmptyState } from '../components/ui';
 import { Coffee } from 'lucide-react';
+import type { Coffee as CoffeeType } from '../types';
 
 // ── Stage definitions ─────────────────────────────────────────────────────────
 
 type Stage = 'pre-roast' | 'resting' | 'approaching' | 'ready' | 'finish-soon' | 'past-peak';
 
+// Color palette designed for partial color-blindness:
+// Slate (done) → Blue (resting) → Cyan (approaching) → Gold (ready ★) → Orange (finish) → Dim (past)
+// Each stage sits in a distinct hue family so no two adjacent stages can be confused.
 const STAGE_CONFIG: Record<Stage, {
   label: string;
-  sublabel: string;
+  short: string;
   bg: string;
   text: string;
   border: string;
   dot: string;
+  dotBg: string;
 }> = {
-  'pre-roast':   { label: 'Pre-Roast',    sublabel: 'not yet roasted',  bg: 'bg-brew-card',           text: 'text-brew-faint',   border: 'border-brew-border',      dot: '#6b7280' },
-  'resting':     { label: 'Resting',      sublabel: 'still resting',    bg: 'bg-green-950/60',        text: 'text-green-400',    border: 'border-green-800/50',     dot: '#4ade80' },
-  'approaching': { label: 'Approaching',  sublabel: 'on the cusp',      bg: 'bg-orange-950/60',       text: 'text-orange-400',   border: 'border-orange-800/50',    dot: '#fb923c' },
-  'ready':       { label: 'Ready',        sublabel: 'prime window',     bg: 'bg-amber-950/60',        text: 'text-amber-300',    border: 'border-amber-700/50',     dot: '#fbbf24' },
-  'finish-soon': { label: 'Finish Soon',  sublabel: 'should finish',    bg: 'bg-blue-950/60',         text: 'text-blue-400',     border: 'border-blue-800/50',      dot: '#60a5fa' },
-  'past-peak':   { label: 'Past Peak',    sublabel: 'past peak',        bg: 'bg-purple-950/40',       text: 'text-purple-400',   border: 'border-purple-800/40',    dot: '#c084fc' },
+  'pre-roast':   { label: 'Pre-Roast',   short: 'pre',    bg: 'bg-slate-900/60',    text: 'text-slate-400',   border: 'border-slate-700/50',   dot: '#64748b', dotBg: 'bg-slate-600/50'   },
+  'resting':     { label: 'Resting',     short: 'rest',   bg: 'bg-blue-950/70',     text: 'text-blue-300',    border: 'border-blue-700/50',    dot: '#60a5fa', dotBg: 'bg-blue-500/60'    },
+  'approaching': { label: 'Approaching', short: 'near',   bg: 'bg-cyan-950/70',     text: 'text-cyan-300',    border: 'border-cyan-700/50',    dot: '#22d3ee', dotBg: 'bg-cyan-500/60'    },
+  'ready':       { label: 'Ready ★',     short: 'PEAK',   bg: 'bg-amber-900/50',    text: 'text-amber-200',   border: 'border-amber-500/60',   dot: '#fbbf24', dotBg: 'bg-amber-400/80'   },
+  'finish-soon': { label: 'Finish Soon', short: 'finish', bg: 'bg-orange-950/70',   text: 'text-orange-300',  border: 'border-orange-600/50',  dot: '#fb923c', dotBg: 'bg-orange-500/60'  },
+  'past-peak':   { label: 'Past Peak',   short: 'past',   bg: 'bg-slate-800/30',    text: 'text-slate-500',   border: 'border-slate-700/30',   dot: '#475569', dotBg: 'bg-slate-600/40'   },
 };
 
-const STAGE_ORDER: Record<Stage, number> = {
-  'ready': 0, 'approaching': 1, 'resting': 2, 'finish-soon': 3, 'pre-roast': 4, 'past-peak': 5,
+const STAGE_PRIORITY: Record<Stage, number> = {
+  'ready': 0, 'approaching': 1, 'finish-soon': 2, 'resting': 3, 'pre-roast': 4, 'past-peak': 5,
 };
+
+/** Stages that count as "in drinking window" */
+function isDrinkable(s: Stage) {
+  return s === 'ready' || s === 'approaching' || s === 'finish-soon';
+}
+
+// ── Brewing window defaults ────────────────────────────────────────────────────
+
+const BREW_WINDOW_DEFAULTS: Record<string, { start: number; peakMin: number; peakMax: number }> = {
+  'Ultra Light': { start: 2.5, peakMin: 3.5, peakMax: 8   },
+  'Light':        { start: 2,   peakMin: 3,   peakMax: 6   },
+  'Light-Medium': { start: 1.5, peakMin: 2.5, peakMax: 5   },
+  'Medium':       { start: 1,   peakMin: 2,   peakMax: 4   },
+  'Medium-Dark':  { start: 0.5, peakMin: 1,   peakMax: 2.5 },
+  'Dark':         { start: 0.3, peakMin: 0.5, peakMax: 1.5 },
+};
+
+function getWindow(c: CoffeeType) {
+  const def = BREW_WINDOW_DEFAULTS[c.roastLevel] ?? BREW_WINDOW_DEFAULTS['Light'];
+  return {
+    start:   c.brewWindowStart   ?? def.start,
+    peakMin: c.brewWindowPeakMin ?? def.peakMin,
+    peakMax: c.brewWindowPeakMax ?? def.peakMax,
+  };
+}
+
+function getStage(days: number, c: CoffeeType): Stage {
+  if (days < 0) return 'pre-roast';
+  const { start, peakMin, peakMax } = getWindow(c);
+  if (days < start   * 7) return 'resting';
+  if (days < peakMin * 7) return 'approaching';
+  if (days < peakMax * 7) return 'ready';
+  if (days < (peakMax + 2) * 7) return 'finish-soon';
+  return 'past-peak';
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,13 +93,10 @@ function daysOffRoastAt(roastDate: string, atDate: Date): number {
   return Math.floor((atDate.getTime() - roast.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function getStage(days: number): Stage {
-  if (days < 0)  return 'pre-roast';
-  if (days < 14) return 'resting';
-  if (days < 21) return 'approaching';
-  if (days < 42) return 'ready';
-  if (days < 56) return 'finish-soon';
-  return 'past-peak';
+/** Convert days off-roast to a compact week string: 7→"1w", 3→"0.4w", 29→"4.1w" */
+function fmtWeeks(days: number): string {
+  const w = Math.round(days / 7 * 10) / 10;
+  return `${w}w`;
 }
 
 function formatWeekLabel(date: Date, index: number): { primary: string; secondary?: string } {
@@ -84,194 +121,278 @@ export default function CoffeeReadiness() {
 
   const weeks = useMemo(() => getWeekStarts(9), []);
 
-  // Active coffees with a roast date, sorted by current stage priority
+  // Active coffees with a roast date
   const activeCoffees = useMemo(() =>
-    data.coffees
-      .filter((c) => !c.isFinished && c.roastDate)
-      .sort((a, b) => {
-        const dA = daysOffRoastAt(a.roastDate, today);
-        const dB = daysOffRoastAt(b.roastDate, today);
-        const stageDiff = STAGE_ORDER[getStage(dA)] - STAGE_ORDER[getStage(dB)];
-        if (stageDiff !== 0) return stageDiff;
-        return dA - dB; // within same stage, newer roast first
-      }),
-    [data.coffees, today]
+    data.coffees.filter((c) => !c.isFinished && c.roastDate),
+    [data.coffees]
   );
 
-  // Per-week: does any coffee have a stage worth drinking (ready or approaching)?
+  // Per-week drinkability
   const weekDrinkability = useMemo(() =>
     weeks.map((w) => {
-      const stages = activeCoffees.map((c) => getStage(daysOffRoastAt(c.roastDate, w)));
+      const stages = activeCoffees.map((c) => getStage(daysOffRoastAt(c.roastDate, w), c));
       return {
         hasReady:      stages.some((s) => s === 'ready'),
         hasApproaching: stages.some((s) => s === 'approaching'),
-        isEmpty:       !stages.some((s) => s === 'ready' || s === 'approaching'),
+        hasFinishSoon:  stages.some((s) => s === 'finish-soon'),
+        isDrinkable:   stages.some(isDrinkable),
+        isEmpty:       !stages.some(isDrinkable),
       };
     }),
     [weeks, activeCoffees]
   );
 
-  // Current week summary
-  const currentWeekStages = useMemo(() =>
-    activeCoffees.reduce<Record<Stage, number>>(
-      (acc, c) => {
-        const s = getStage(daysOffRoastAt(c.roastDate, today));
-        acc[s] = (acc[s] || 0) + 1;
-        return acc;
-      },
-      {} as Record<Stage, number>
-    ),
-    [activeCoffees, today]
+  // Gap weeks after the current week
+  const gapWeekLabels = useMemo(() =>
+    weeks
+      .slice(1)
+      .filter((_, i) => weekDrinkability[i + 1].isEmpty)
+      .map((w) => w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    [weeks, weekDrinkability]
   );
 
-  // Gap weeks (after current week, no ready/approaching coffees)
-  const gapWeeks = weeks
-    .slice(1)
-    .filter((_, i) => weekDrinkability[i + 1].isEmpty)
-    .map((w) => w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  // Current week summary counts
+  const currentWeekStageCounts = useMemo(() => {
+    const counts: Partial<Record<Stage, number>> = {};
+    activeCoffees.forEach((c) => {
+      const s = getStage(daysOffRoastAt(c.roastDate, today), c);
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
+    return counts;
+  }, [activeCoffees, today]);
 
   return (
     <div className="flex flex-col gap-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="font-display italic text-brew-text text-3xl leading-tight">Readiness</h1>
-          <p className="text-brew-muted text-sm mt-1">
-            {activeCoffees.length} active coffee{activeCoffees.length !== 1 ? 's' : ''} · rest windows for the next 9 weeks
-          </p>
-        </div>
+      <div>
+        <h1 className="font-display italic text-brew-text text-3xl leading-tight">Brewing Calendar</h1>
+        <p className="text-brew-muted text-sm mt-1">
+          {activeCoffees.length} active coffee{activeCoffees.length !== 1 ? 's' : ''} · 9-week brewing outlook
+        </p>
       </div>
 
+      {/* 9-week drinkability overview bar */}
+      {activeCoffees.length > 0 && (
+        <div className="flex gap-1">
+          {weeks.map((w, i) => {
+            const info = weekDrinkability[i];
+            const { primary } = formatWeekLabel(w, i);
+            const dot = info.hasReady ? STAGE_CONFIG['ready'].dot
+              : info.hasApproaching ? STAGE_CONFIG['approaching'].dot
+              : info.hasFinishSoon ? STAGE_CONFIG['finish-soon'].dot
+              : '#374151';
+            return (
+              <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                <div
+                  className="w-full h-2 rounded-full"
+                  style={{ backgroundColor: info.isEmpty ? '#374151' : dot, opacity: info.isEmpty ? 0.5 : 1 }}
+                />
+                <span className={`text-center leading-tight ${i === 0 ? 'text-brew-text font-semibold' : info.isEmpty ? 'text-amber-500/70' : 'text-brew-faint'}`}
+                  style={{ fontSize: '9px' }}>
+                  {i === 0 ? 'Now' : i === 1 ? 'Nxt' : primary.replace(/\s/, ' ')}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Legend */}
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {(Object.entries(STAGE_CONFIG) as [Stage, (typeof STAGE_CONFIG)[Stage]][])
           .filter(([s]) => s !== 'pre-roast')
           .map(([stage, cfg]) => (
-            <div key={stage} className="flex items-center gap-2">
+            <div key={stage} className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
               <span className="text-xs text-brew-muted">{cfg.label}</span>
-              <span className="text-xs text-brew-faint hidden sm:inline">— {cfg.sublabel}</span>
             </div>
           ))}
       </div>
 
-      {/* This week summary strip */}
-      {activeCoffees.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-          {(Object.entries(currentWeekStages) as [Stage, number][])
-            .sort(([a], [b]) => STAGE_ORDER[a] - STAGE_ORDER[b])
+      {/* This week summary chips */}
+      {activeCoffees.length > 0 && Object.keys(currentWeekStageCounts).length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {(Object.entries(currentWeekStageCounts) as [Stage, number][])
+            .sort(([a], [b]) => STAGE_PRIORITY[a] - STAGE_PRIORITY[b])
             .map(([stage, count]) => {
               const cfg = STAGE_CONFIG[stage];
+              const isReady = stage === 'ready';
               return (
-                <div key={stage} className={`rounded-xl border px-3 py-2.5 ${cfg.bg} ${cfg.border}`}>
-                  <div className={`text-lg font-bold leading-none ${cfg.text}`}>{count}</div>
-                  <div className={`text-xs mt-1 ${cfg.text} opacity-80`}>{cfg.label}</div>
+                <div key={stage} className={`rounded-xl border px-3 py-2 flex items-center gap-2 ${cfg.bg} ${cfg.border} ${isReady ? 'ring-1 ring-amber-400/40' : ''}`}>
+                  <div className={`rounded-full flex-shrink-0 ${isReady ? 'w-3 h-3' : 'w-2 h-2'}`} style={{ backgroundColor: cfg.dot }} />
+                  <span className={`font-bold ${cfg.text} ${isReady ? 'text-base' : 'text-sm'}`}>{count}</span>
+                  <span className={`text-xs font-medium ${cfg.text} ${isReady ? '' : 'opacity-70'}`}>{cfg.label}</span>
                 </div>
               );
             })}
         </div>
       )}
 
-      {/* Gap / order alert */}
-      {gapWeeks.length > 0 && (
+      {/* Order alert */}
+      {gapWeekLabels.length > 0 && (
         <Card className="p-3.5 flex items-start gap-3 border-amber-700/40 bg-amber-950/20">
           <ShoppingCart size={15} className="text-amber-400 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-300">Consider ordering soon</p>
             <p className="text-xs text-brew-muted mt-0.5">
               No coffees will be in their drinking window during:{' '}
-              <span className="text-amber-400/80">{gapWeeks.join(', ')}</span>.
+              <span className="text-amber-400/80">{gapWeekLabels.join(', ')}</span>.
               {' '}A coffee ordered today typically needs 2–3 weeks of rest after it arrives.
             </p>
           </div>
         </Card>
       )}
 
-      {/* Swimlane */}
-      {activeCoffees.length === 0 ? (
+      {/* Empty state */}
+      {activeCoffees.length === 0 && (
         <EmptyState
           icon={<Coffee size={36} />}
           title="No active coffees"
           description="Add coffees with roast dates to see their rest windows here."
         />
-      ) : (
-        <div className="overflow-x-auto -mx-4 px-4 md:-mx-8 md:px-8">
-          <table className="border-collapse" style={{ minWidth: `${160 + weeks.length * 100}px` }}>
+      )}
 
-            {/* Week headers */}
-            <thead>
-              <tr>
-                <th className="text-left pb-3 pr-3 w-40 min-w-40">
-                  <span className="text-xs text-brew-faint font-normal">Coffee</span>
-                </th>
-                {weeks.map((w, i) => {
-                  const { primary, secondary } = formatWeekLabel(w, i);
-                  const info = weekDrinkability[i];
-                  return (
-                    <th key={i} className={`pb-3 px-1 min-w-24 text-center ${i === 0 ? 'text-brew-text' : info.isEmpty ? 'text-amber-500/70' : 'text-brew-muted'}`}>
-                      <div className={`text-xs font-semibold leading-tight ${i === 0 ? 'text-brew-text' : ''}`}>{primary}</div>
-                      {secondary && <div className="text-xs font-normal opacity-60 mt-0.5">{secondary}</div>}
-                      {info.isEmpty && i > 0 && (
-                        <div className="text-amber-500/60 mt-0.5" style={{ fontSize: '9px' }}>⚠ gap</div>
-                      )}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
+      {/* Weekly card stack */}
+      {activeCoffees.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {weeks.map((weekStart, wi) => {
+            const { primary, secondary } = formatWeekLabel(weekStart, wi);
+            const info = weekDrinkability[wi];
+            const isNow = wi === 0;
 
-            {/* Coffee rows */}
-            <tbody>
-              {activeCoffees.map((coffee) => (
-                <tr
-                  key={coffee.id}
-                  className="cursor-pointer group"
-                  onClick={() => navigate(`/coffees/${coffee.id}`)}
-                >
-                  {/* Coffee name column */}
-                  <td className="py-1 pr-3 align-middle">
-                    <div className="flex items-start gap-1.5">
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-brew-text leading-tight truncate max-w-36 group-hover:text-brew-primary transition-colors">
-                          {coffee.roaster}
-                        </div>
-                        <div className="text-xs text-brew-faint leading-tight truncate max-w-36 flex items-center gap-1">
-                          {coffee.coffeeName || `${coffee.countryOrigin}${coffee.region ? `, ${coffee.region}` : ''}`}
-                          {coffee.isFreezing && <Snowflake size={9} className="text-blue-400 flex-shrink-0" />}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
+            // Sort coffees by stage priority for this week
+            const weekCoffees = [...activeCoffees].sort((a, b) => {
+              const sA = getStage(daysOffRoastAt(a.roastDate, weekStart), a);
+              const sB = getStage(daysOffRoastAt(b.roastDate, weekStart), b);
+              const diff = STAGE_PRIORITY[sA] - STAGE_PRIORITY[sB];
+              if (diff !== 0) return diff;
+              return daysOffRoastAt(a.roastDate, weekStart) - daysOffRoastAt(b.roastDate, weekStart);
+            });
 
-                  {/* Week cells */}
-                  {weeks.map((w, i) => {
-                    const days = daysOffRoastAt(coffee.roastDate, w);
-                    const stage = getStage(days);
+            // Determine the "best" stage present this week for header color
+            const bestStageThisWeek: Stage = info.hasReady ? 'ready'
+              : info.hasApproaching ? 'approaching'
+              : info.hasFinishSoon ? 'finish-soon'
+              : 'resting';
+            const bestCfg = STAGE_CONFIG[bestStageThisWeek];
+
+            return (
+              <Card
+                key={wi}
+                className={`overflow-hidden ${
+                  info.hasReady && isNow ? 'border-amber-500/40' :
+                  isNow ? 'border-brew-primary/30' :
+                  info.isEmpty && wi > 0 ? 'border-slate-600/40' : ''
+                }`}
+              >
+                {/* Week header */}
+                <div className={`px-4 py-2.5 flex items-center justify-between border-b ${
+                  info.hasReady && isNow ? 'bg-amber-950/30 border-amber-700/30' :
+                  isNow ? 'bg-brew-primary/10 border-brew-primary/20' :
+                  info.isEmpty && wi > 0 ? 'bg-slate-800/30 border-slate-700/20' :
+                  'bg-brew-card/50 border-brew-border'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${
+                      info.hasReady && isNow ? 'text-amber-200' :
+                      isNow ? 'text-brew-primary-light' :
+                      info.isEmpty && wi > 0 ? 'text-slate-400' :
+                      'text-brew-text'
+                    }`}>
+                      {primary}
+                    </span>
+                    {secondary && (
+                      <span className="text-xs text-brew-faint">{secondary}</span>
+                    )}
+                    {info.isEmpty && wi > 0 && (
+                      <span className="text-xs text-slate-500 font-medium">⚠ gap</span>
+                    )}
+                  </div>
+                  {/* Week-level stage pill */}
+                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${info.isDrinkable ? bestCfg.bg + ' ' + bestCfg.border : 'bg-slate-800/40 border-slate-700/30'}`}>
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: info.isDrinkable ? bestCfg.dot : '#475569' }} />
+                    <span className={`text-xs font-medium ${info.isDrinkable ? bestCfg.text : 'text-slate-500'}`}>
+                      {info.isDrinkable
+                        ? info.hasReady ? 'Peak ★' : info.hasApproaching ? 'Approaching' : 'Finish Soon'
+                        : 'No window'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Coffee rows */}
+                <div className="divide-y divide-brew-border/40">
+                  {weekCoffees.map((coffee) => {
+                    const days = daysOffRoastAt(coffee.roastDate, weekStart);
+                    const stage = getStage(days, coffee);
                     const cfg = STAGE_CONFIG[stage];
-                    const isToday = i === 0;
+
+                    // 9-dot trail: stages for this week + next 8 weeks
+                    const trail = weeks.map((w) => {
+                      const d = daysOffRoastAt(coffee.roastDate, w);
+                      return getStage(d, coffee);
+                    });
 
                     return (
-                      <td key={i} className="py-1 px-1 align-middle">
-                        <div className={`
-                          rounded-lg border px-2 py-2 text-center transition-opacity
-                          ${cfg.bg} ${cfg.border}
-                          ${isToday ? 'ring-1 ring-brew-primary/30' : ''}
-                        `}>
-                          <div className={`text-xs font-bold leading-none ${cfg.text}`}>
-                            {days < 0 ? `−${-days}d` : `${days}d`}
+                      <div
+                        key={coffee.id}
+                        className="px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-brew-card/40 transition-colors group"
+                        onClick={() => navigate(`/coffees/${coffee.id}`)}
+                      >
+                        {/* Stage dot */}
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
+
+                        {/* Name */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-brew-text truncate group-hover:text-brew-primary transition-colors">
+                            {coffee.roaster}
                           </div>
-                          <div className={`leading-tight mt-0.5 ${cfg.text} opacity-70`} style={{ fontSize: '9px' }}>
-                            {stage === 'pre-roast' ? 'pre' : cfg.label.toLowerCase()}
+                          <div className="text-xs text-brew-faint truncate flex items-center gap-1">
+                            {coffee.coffeeName || `${coffee.countryOrigin}${coffee.region ? `, ${coffee.region}` : ''}`}
+                            {coffee.isFreezing && <Snowflake size={9} className="text-blue-400 flex-shrink-0" />}
                           </div>
                         </div>
-                      </td>
+
+                        {/* Weeks + stage */}
+                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0 w-16">
+                          <span className={`text-xs font-bold ${cfg.text}`}>
+                            {fmtWeeks(days)}
+                          </span>
+                          <span className={`leading-tight font-medium ${stage === 'ready' ? cfg.text : cfg.text + ' opacity-60'}`} style={{ fontSize: '9px' }}>
+                            {cfg.short}
+                          </span>
+                        </div>
+
+                        {/* 9-dot trail */}
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          {trail.map((s, di) => {
+                            const dotCfg = STAGE_CONFIG[s];
+                            const isCurrentWeek = di === wi;
+                            return (
+                              <div
+                                key={di}
+                                className="rounded-full flex-shrink-0"
+                                style={{
+                                  width:  isCurrentWeek ? 9 : 7,
+                                  height: isCurrentWeek ? 9 : 7,
+                                  backgroundColor: dotCfg.dot,
+                                  opacity: di < wi ? 0.3 : 1,
+                                  outline: isCurrentWeek ? `1.5px solid ${dotCfg.dot}44` : 'none',
+                                  outlineOffset: '1px',
+                                }}
+                                title={`Week ${di + 1}: ${dotCfg.label}`}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 

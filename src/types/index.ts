@@ -54,6 +54,9 @@ export interface Coffee {
   freezeStart?: string;
   freezeStop?: string;
   isFavorite?: boolean;
+  brewWindowStart?: number;    // weeks from roast to begin brewing
+  brewWindowPeakMin?: number;  // weeks from roast when peak starts
+  brewWindowPeakMax?: number;  // weeks from roast when peak ends
   createdAt: string;
 }
 

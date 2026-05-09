@@ -71,6 +71,20 @@ const blankCoffee: Omit<CoffeeType, 'id' | 'createdAt'> = {
   freezeStart: undefined,
   freezeStop: undefined,
   isFavorite: false,
+  brewWindowStart: undefined,
+  brewWindowPeakMin: undefined,
+  brewWindowPeakMax: undefined,
+};
+
+// ── Brewing window defaults by roast level ────────────────────────────────────
+
+const BREW_WINDOW_DEFAULTS: Record<string, { start: number; peakMin: number; peakMax: number }> = {
+  'Ultra Light': { start: 2.5, peakMin: 3.5, peakMax: 8 },
+  'Light':        { start: 2,   peakMin: 3,   peakMax: 6 },
+  'Light-Medium': { start: 1.5, peakMin: 2.5, peakMax: 5 },
+  'Medium':       { start: 1,   peakMin: 2,   peakMax: 4 },
+  'Medium-Dark':  { start: 0.5, peakMin: 1,   peakMax: 2.5 },
+  'Dark':         { start: 0.3, peakMin: 0.5, peakMax: 1.5 },
 };
 
 // ── Coffee Form ───────────────────────────────────────────────────────────────
@@ -113,6 +127,9 @@ export function CoffeeForm() {
           freezeStart: existing.freezeStart,
           freezeStop: existing.freezeStop,
           isFavorite: existing.isFavorite ?? false,
+          brewWindowStart: existing.brewWindowStart,
+          brewWindowPeakMin: existing.brewWindowPeakMin,
+          brewWindowPeakMax: existing.brewWindowPeakMax,
         }
       : blankCoffee,
   );
@@ -369,7 +386,17 @@ export function CoffeeForm() {
             <Select
               label="Roast Level"
               value={form.roastLevel}
-              onChange={(e) => set('roastLevel', e.target.value as RoastLevel)}
+              onChange={(e) => {
+                const lvl = e.target.value as RoastLevel;
+                set('roastLevel', lvl);
+                // Auto-populate brewing window from defaults when not yet customised
+                if (form.brewWindowStart === undefined && form.brewWindowPeakMin === undefined && form.brewWindowPeakMax === undefined) {
+                  const def = BREW_WINDOW_DEFAULTS[lvl];
+                  if (def) {
+                    setForm((f) => ({ ...f, roastLevel: lvl, brewWindowStart: def.start, brewWindowPeakMin: def.peakMin, brewWindowPeakMax: def.peakMax }));
+                  }
+                }
+              }}
               options={ROASTS.map((r) => ({ value: r, label: r }))}
             />
             <Input
@@ -392,6 +419,97 @@ export function CoffeeForm() {
               placeholder="e.g. jasmine, peach, honey, brown sugar..."
             />
           </div>
+        </Card>
+
+        {/* Brewing Window */}
+        <Card className="p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-2">
+            <SectionTitle>Brewing Window</SectionTitle>
+            <button
+              type="button"
+              className="text-xs text-brew-primary underline-offset-2 hover:underline"
+              onClick={() => {
+                const def = BREW_WINDOW_DEFAULTS[form.roastLevel];
+                if (def) setForm((f) => ({ ...f, brewWindowStart: def.start, brewWindowPeakMin: def.peakMin, brewWindowPeakMax: def.peakMax }));
+              }}
+            >
+              Reset to {form.roastLevel} defaults
+            </button>
+          </div>
+          <p className="text-xs text-brew-faint -mt-2">
+            When this coffee is best to brew. Defaults set by roast level — adjust for your coffee.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Begin Brewing</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={form.brewWindowStart ?? BREW_WINDOW_DEFAULTS[form.roastLevel]?.start ?? ''}
+                  onChange={(e) => set('brewWindowStart', parseFloat(e.target.value) || undefined)}
+                  className="flex-1 bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors w-full"
+                  placeholder={String(BREW_WINDOW_DEFAULTS[form.roastLevel]?.start ?? '')}
+                />
+                <span className="text-xs text-brew-faint flex-shrink-0">wks</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Peak Starts</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={form.brewWindowPeakMin ?? BREW_WINDOW_DEFAULTS[form.roastLevel]?.peakMin ?? ''}
+                  onChange={(e) => set('brewWindowPeakMin', parseFloat(e.target.value) || undefined)}
+                  className="flex-1 bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors w-full"
+                  placeholder={String(BREW_WINDOW_DEFAULTS[form.roastLevel]?.peakMin ?? '')}
+                />
+                <span className="text-xs text-brew-faint flex-shrink-0">wks</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Peak Ends</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={form.brewWindowPeakMax ?? BREW_WINDOW_DEFAULTS[form.roastLevel]?.peakMax ?? ''}
+                  onChange={(e) => set('brewWindowPeakMax', parseFloat(e.target.value) || undefined)}
+                  className="flex-1 bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors w-full"
+                  placeholder={String(BREW_WINDOW_DEFAULTS[form.roastLevel]?.peakMax ?? '')}
+                />
+                <span className="text-xs text-brew-faint flex-shrink-0">wks</span>
+              </div>
+            </div>
+          </div>
+          {/* Visual preview bar */}
+          {(() => {
+            const start = form.brewWindowStart ?? BREW_WINDOW_DEFAULTS[form.roastLevel]?.start ?? 2;
+            const peakMin = form.brewWindowPeakMin ?? BREW_WINDOW_DEFAULTS[form.roastLevel]?.peakMin ?? 3;
+            const peakMax = form.brewWindowPeakMax ?? BREW_WINDOW_DEFAULTS[form.roastLevel]?.peakMax ?? 6;
+            const total = peakMax + 2;
+            return (
+              <div className="mt-1">
+                <div className="flex h-3 rounded-full overflow-hidden w-full gap-px">
+                  <div className="bg-blue-800/60 rounded-l-full" style={{ width: `${(start / total) * 100}%` }} title="Resting" />
+                  <div className="bg-cyan-700/60" style={{ width: `${((peakMin - start) / total) * 100}%` }} title="Approaching" />
+                  <div className="bg-amber-500/80" style={{ width: `${((peakMax - peakMin) / total) * 100}%` }} title="Peak" />
+                  <div className="bg-orange-700/60 rounded-r-full" style={{ width: `${(2 / total) * 100}%` }} title="Finish Soon" />
+                </div>
+                <div className="flex justify-between text-xs text-brew-faint mt-1">
+                  <span>0</span>
+                  <span className="text-blue-400">{start}w</span>
+                  <span className="text-cyan-400">{peakMin}w</span>
+                  <span className="text-amber-400">{peakMax}w</span>
+                  <span>{total}w+</span>
+                </div>
+              </div>
+            );
+          })()}
         </Card>
 
         {/* Brewing Status */}
@@ -764,6 +882,50 @@ export function CoffeeDetail() {
           </div>
         </Card>
       )}
+
+      {/* Brewing window summary */}
+      {coffee.roastDate && status !== 'finished' && (() => {
+        const def = BREW_WINDOW_DEFAULTS[coffee.roastLevel] ?? BREW_WINDOW_DEFAULTS['Light'];
+        const start   = coffee.brewWindowStart    ?? def.start;
+        const peakMin = coffee.brewWindowPeakMin  ?? def.peakMin;
+        const peakMax = coffee.brewWindowPeakMax  ?? def.peakMax;
+        const isCustom = coffee.brewWindowStart !== undefined || coffee.brewWindowPeakMin !== undefined || coffee.brewWindowPeakMax !== undefined;
+        return (
+          <Card className="p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-semibold uppercase tracking-widest text-brew-muted">Brewing Window</div>
+              {isCustom && <span className="text-xs text-brew-faint">Custom</span>}
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-brew-faint">Begin Brewing</span>
+                <span className="font-semibold text-green-400">{start}w</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-brew-faint">Peak Starts</span>
+                <span className="font-semibold text-amber-400">{peakMin}w</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-brew-faint">Peak Ends</span>
+                <span className="font-semibold text-amber-400">{peakMax}w</span>
+              </div>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden w-full gap-px mt-0.5">
+              {(() => {
+                const total = peakMax + 2;
+                return (
+                  <>
+                    <div className="bg-blue-800/60 rounded-l-full" style={{ width: `${(start / total) * 100}%` }} />
+                    <div className="bg-cyan-700/60" style={{ width: `${((peakMin - start) / total) * 100}%` }} />
+                    <div className="bg-amber-500/80" style={{ width: `${((peakMax - peakMin) / total) * 100}%` }} />
+                    <div className="bg-orange-700/60 rounded-r-full" style={{ width: `${(2 / total) * 100}%` }} />
+                  </>
+                );
+              })()}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Quick actions */}
       <div className="flex gap-2 flex-wrap">
