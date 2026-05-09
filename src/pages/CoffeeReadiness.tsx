@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Snowflake } from 'lucide-react';
+import { Snowflake } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, EmptyState } from '../components/ui';
 import { Coffee } from 'lucide-react';
@@ -131,25 +131,25 @@ export default function CoffeeReadiness() {
   const weekDrinkability = useMemo(() =>
     weeks.map((w) => {
       const stages = activeCoffees.map((c) => getStage(daysOffRoastAt(c.roastDate, w), c));
+      const optimalCount = stages.filter(isOptimal).length; // ready + peaking only
       return {
-        hasPeaking:  stages.some((s) => s === 'peaking'),
-        hasReady:    stages.some((s) => s === 'ready'),
-        hasPastPeak: stages.some((s) => s === 'past-peak'),
-        isDrinkable: stages.some(isDrinkable),
-        hasOptimal:  stages.some(isOptimal),
-        isEmpty:     !stages.some(isDrinkable),
+        hasPeaking:   stages.some((s) => s === 'peaking'),
+        hasReady:     stages.some((s) => s === 'ready'),
+        hasPastPeak:  stages.some((s) => s === 'past-peak'),
+        isDrinkable:  stages.some(isDrinkable),
+        hasOptimal:   optimalCount > 0,
+        optimalCount,
+        isLimited:    optimalCount === 1,   // exactly 1 ready/peaking
+        isEmpty:      optimalCount === 0,   // none ready/peaking (may still have past-peak)
       };
     }),
     [weeks, activeCoffees]
   );
 
-  const gapWeekLabels = useMemo(() =>
-    weeks
-      .slice(1)
-      .filter((_, i) => weekDrinkability[i + 1].isEmpty)
-      .map((w) => w.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
-    [weeks, weekDrinkability]
-  );
+  // First week (after this week) where inventory drops to 1 or 0
+  const firstLimitedIdx = weekDrinkability.slice(1).findIndex((w) => w.optimalCount < 2);
+  const firstLimitedWeek = firstLimitedIdx >= 0 ? weeks[firstLimitedIdx + 1] : null;
+  const firstLimitedCount = firstLimitedIdx >= 0 ? weekDrinkability[firstLimitedIdx + 1].optimalCount : null;
 
   const currentWeekStageCounts = useMemo(() => {
     const counts: Partial<Record<Stage, number>> = {};
@@ -171,24 +171,77 @@ export default function CoffeeReadiness() {
         </p>
       </div>
 
-      {/* 9-week drinkability bar */}
+      {/* Inventory status summary */}
+      {activeCoffees.length > 0 && (() => {
+        const thisWeek = weekDrinkability[0];
+        if (firstLimitedWeek === null) {
+          // Stays well-stocked all 9 weeks
+          return (
+            <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+              Well-stocked for all 9 weeks
+            </div>
+          );
+        }
+        const limitedLabel = firstLimitedWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const isGone = firstLimitedCount === 0;
+        return (
+          <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${isGone ? 'bg-rose-950/30 border-rose-700/40' : 'bg-amber-950/25 border-amber-700/35'}`}>
+            <span className="text-lg leading-none mt-0.5">{isGone ? '⚠️' : '⚠'}</span>
+            <div>
+              <p className={`text-sm font-semibold ${isGone ? 'text-rose-300' : 'text-amber-300'}`}>
+                {isGone
+                  ? `No ready/peaking coffees from week of ${limitedLabel}`
+                  : `Down to 1 ready/peaking coffee from week of ${limitedLabel}`}
+              </p>
+              <p className="text-xs text-brew-muted mt-0.5">
+                {isGone
+                  ? 'Consider ordering now — coffees typically need 2–3 weeks to rest after arrival.'
+                  : 'Inventory gets thin — consider ordering soon to avoid a gap.'}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 9-week inventory bar — height shows count, color shows best stage */}
       {activeCoffees.length > 0 && (
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-end">
           {weeks.map((w, i) => {
             const info = weekDrinkability[i];
             const { primary } = formatWeekLabel(w, i);
-            const dot = info.hasPeaking  ? STAGE_CONFIG['peaking'].dot
-              : info.hasReady    ? STAGE_CONFIG['ready'].dot
+            // Bar color: green ≥ 2, amber = 1, rose = 0 optimal, slate = nothing
+            const barColor = info.optimalCount >= 2
+              ? (info.hasPeaking ? STAGE_CONFIG['peaking'].dot : STAGE_CONFIG['ready'].dot)
+              : info.optimalCount === 1 ? '#f59e0b'
               : info.hasPastPeak ? STAGE_CONFIG['past-peak'].dot
               : '#374151';
+            const maxCount = Math.max(...weekDrinkability.map((d) => d.optimalCount), 1);
+            const barH = info.optimalCount === 0 ? 6 : Math.max(10, Math.round((info.optimalCount / maxCount) * 28));
             return (
               <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                {/* Count label */}
+                <span className={`text-xs font-bold leading-none ${
+                  info.optimalCount >= 2 ? 'text-brew-muted' :
+                  info.optimalCount === 1 ? 'text-amber-400' : 'text-slate-600'
+                }`}>
+                  {info.optimalCount > 0 ? info.optimalCount : '—'}
+                </span>
+                {/* Bar */}
                 <div
-                  className="w-full h-2 rounded-full"
-                  style={{ backgroundColor: info.isEmpty ? '#374151' : dot, opacity: info.isEmpty ? 0.4 : 1 }}
+                  className="w-full rounded-t-sm"
+                  style={{
+                    height: barH,
+                    backgroundColor: barColor,
+                    opacity: info.optimalCount === 0 ? 0.35 : 1,
+                  }}
                 />
+                {/* Week label */}
                 <span
-                  className={`text-center leading-tight ${i === 0 ? 'text-brew-text font-semibold' : info.isEmpty ? 'text-slate-500' : 'text-brew-faint'}`}
+                  className={`text-center leading-tight ${
+                    i === 0 ? 'text-brew-text font-semibold' :
+                    info.optimalCount < 2 ? 'text-amber-500/70' : 'text-brew-faint'
+                  }`}
                   style={{ fontSize: '9px' }}
                 >
                   {i === 0 ? 'Now' : i === 1 ? 'Nxt' : primary}
@@ -242,20 +295,6 @@ export default function CoffeeReadiness() {
         </div>
       )}
 
-      {/* Order alert */}
-      {gapWeekLabels.length > 0 && (
-        <Card className="p-3.5 flex items-start gap-3 border-amber-700/40 bg-amber-950/20">
-          <ShoppingCart size={15} className="text-amber-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-amber-300">Consider ordering soon</p>
-            <p className="text-xs text-brew-muted mt-0.5">
-              No coffees will be in their drinking window during:{' '}
-              <span className="text-amber-400/80">{gapWeekLabels.join(', ')}</span>.
-              {' '}A coffee ordered today typically needs 2–3 weeks of rest after it arrives.
-            </p>
-          </div>
-        </Card>
-      )}
 
       {/* Empty state */}
       {activeCoffees.length === 0 && (
