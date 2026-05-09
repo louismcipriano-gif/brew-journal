@@ -173,7 +173,6 @@ export default function CoffeeReadiness() {
 
       {/* Inventory status summary */}
       {activeCoffees.length > 0 && (() => {
-        const thisWeek = weekDrinkability[0];
         if (firstLimitedWeek === null) {
           // Stays well-stocked all 9 weeks
           return (
