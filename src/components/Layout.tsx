@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import {
   LayoutDashboard, Coffee, BookOpen, BarChart3, BookMarked,
-  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X, GraduationCap, CalendarDays,
+  Settings2, Plus, Droplets, GitCompare, MoreHorizontal, X, GraduationCap, CalendarDays, Store,
 } from 'lucide-react';
 import { Button } from './ui';
 
@@ -20,6 +20,7 @@ const moreNav = [
   { to: '/water-recipes', icon: Droplets,       label: 'Water'      },
   { to: '/compare',       icon: GitCompare,     label: 'Compare'    },
   { to: '/readiness',     icon: CalendarDays,   label: 'Calendar'   },
+  { to: '/roasters',      icon: Store,          label: 'Roasters'   },
   { to: '/learnings',     icon: GraduationCap,  label: 'Learnings'  },
   { to: '/settings',      icon: Settings2,      label: 'Settings'   },
 ];
@@ -33,6 +34,7 @@ const sidebarNav = [
   { to: '/water-recipes', icon: Droplets,        label: 'Water'        },
   { to: '/compare',       icon: GitCompare,      label: 'Compare'      },
   { to: '/analytics',     icon: BarChart3,       label: 'Analytics'    },
+  { to: '/roasters',      icon: Store,           label: 'Roasters'     },
   { to: '/learnings',     icon: GraduationCap,   label: 'Learnings'    },
 ];
 

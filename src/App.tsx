@@ -11,6 +11,7 @@ import Recipes, { RecipeForm, RecipeDetail } from './pages/Recipes';
 import WaterRecipes, { WaterRecipeForm, WaterRecipeDetail } from './pages/WaterRecipes';
 import Settings from './pages/Settings';
 import Compare from './pages/Compare';
+import Roasters from './pages/Roasters';
 import Learnings from './pages/Learnings';
 import CoffeeReadiness from './pages/CoffeeReadiness';
 
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="/compare" element={<Compare />} />
         <Route path="/learnings" element={<Learnings />} />
         <Route path="/readiness" element={<CoffeeReadiness />} />
+        <Route path="/roasters" element={<Roasters />} />
       </Routes>
     </Layout>
   );

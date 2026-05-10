@@ -244,6 +244,15 @@ export interface AppData {
   waterRecipes: WaterRecipe[];
 }
 
+export interface RoasterWishlist {
+  id: string;
+  name: string;
+  location?: string;   // city / country
+  website?: string;
+  notes?: string;      // why you want to try them, what you've heard
+  createdAt: string;
+}
+
 export type LearningCategory =
   | 'Grind'
   | 'Temperature'
