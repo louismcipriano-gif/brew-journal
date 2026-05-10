@@ -95,7 +95,6 @@ export default function Roasters() {
     setWishlist((w) => w.filter((x) => x.id !== id));
   }
 
-  const wishlistNames = new Set(wishlist.map((w) => w.name.toLowerCase()));
 
   return (
     <div className="flex flex-col gap-8">
