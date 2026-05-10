@@ -95,9 +95,7 @@ export default function Roasters() {
     setWishlist((w) => w.filter((x) => x.id !== id));
   }
 
-  // ── Already on wishlist (filter tried roasters that are also wishlisted) ──
   const wishlistNames = new Set(wishlist.map((w) => w.name.toLowerCase()));
-  const triedNotWishlisted = triedRoasters.filter((r) => !wishlistNames.has(r.name.toLowerCase()));
 
   return (
     <div className="flex flex-col gap-8">
