@@ -182,34 +182,23 @@ export default function CoffeeReadiness() {
       {/* Inventory status summary */}
       {activeCoffees.length > 0 && (() => {
         if (firstLimitedWeek === null) {
-          // Stays well-stocked all 9 weeks
           return (
-            <div className="flex items-center gap-2 text-sm text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-              Well-stocked for all 9 weeks
-            </div>
+            <p className="text-sm text-brew-muted">
+              Well-stocked through all 9 weeks.
+            </p>
           );
         }
-        const limitedLabel = firstLimitedWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const limitedLabel = firstLimitedWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
         const isGone = firstLimitedCount === 0;
         return (
-          <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${isGone ? 'bg-rose-950/30 border-rose-700/40' : 'bg-amber-950/25 border-amber-700/35'}`}>
-            <span className="text-lg leading-none mt-0.5">{isGone ? '⚠️' : '⚠'}</span>
-            <div>
-              <p className={`text-sm font-semibold ${isGone ? 'text-rose-300' : 'text-amber-300'}`}>
-                {isGone
-                  ? `No ready/peaking coffees from ${limitedLabel}`
-                  : `Coffee supply drops to 1 the week of ${limitedLabel}`}
-              </p>
-              <p className="text-xs text-brew-muted mt-0.5">
-                Assuming a fresh roast needs ~2 weeks to rest after arrival,{' '}
-                <span className={`font-semibold ${isGone ? 'text-rose-300' : 'text-amber-300'}`}>
-                  order by {orderByLabel}
-                </span>{' '}
-                to have it ready by {limitedLabel}.
-              </p>
-            </div>
-          </div>
+          <Card className="p-4 flex flex-col gap-1.5">
+            <p className="text-xs text-brew-faint uppercase tracking-widest font-medium">Inventory outlook</p>
+            <p className="text-brew-text text-sm leading-relaxed">
+              {isGone ? 'No ready or peaking coffees' : 'Supply drops to 1'} the week of {limitedLabel}.
+              {' '}To have a fresh roast rested and ready by then, consider ordering by{' '}
+              <span className="font-display italic text-brew-primary-light text-base">{orderByLabel}</span>.
+            </p>
+          </Card>
         );
       })()}
 
