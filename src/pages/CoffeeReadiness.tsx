@@ -146,10 +146,18 @@ export default function CoffeeReadiness() {
     [weeks, activeCoffees]
   );
 
-  // First week (after this week) where inventory drops to 1 or 0
+  // First week (after this week) where inventory drops below 2
   const firstLimitedIdx = weekDrinkability.slice(1).findIndex((w) => w.optimalCount < 2);
   const firstLimitedWeek = firstLimitedIdx >= 0 ? weeks[firstLimitedIdx + 1] : null;
   const firstLimitedCount = firstLimitedIdx >= 0 ? weekDrinkability[firstLimitedIdx + 1].optimalCount : null;
+
+  // "Order by" date: target week minus 2-week rest minus ~4 days shipping
+  const orderByDate = firstLimitedWeek
+    ? new Date(firstLimitedWeek.getTime() - (14 + 4) * 24 * 60 * 60 * 1000)
+    : null;
+  const orderByLabel = orderByDate
+    ? orderByDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null;
 
   const currentWeekStageCounts = useMemo(() => {
     const counts: Partial<Record<Stage, number>> = {};
@@ -190,13 +198,15 @@ export default function CoffeeReadiness() {
             <div>
               <p className={`text-sm font-semibold ${isGone ? 'text-rose-300' : 'text-amber-300'}`}>
                 {isGone
-                  ? `No ready/peaking coffees from week of ${limitedLabel}`
-                  : `Down to 1 ready/peaking coffee from week of ${limitedLabel}`}
+                  ? `No ready/peaking coffees from ${limitedLabel}`
+                  : `Coffee supply drops to 1 the week of ${limitedLabel}`}
               </p>
               <p className="text-xs text-brew-muted mt-0.5">
-                {isGone
-                  ? 'Consider ordering now — coffees typically need 2–3 weeks to rest after arrival.'
-                  : 'Inventory gets thin — consider ordering soon to avoid a gap.'}
+                Assuming a fresh roast needs ~2 weeks to rest after arrival,{' '}
+                <span className={`font-semibold ${isGone ? 'text-rose-300' : 'text-amber-300'}`}>
+                  order by {orderByLabel}
+                </span>{' '}
+                to have it ready by {limitedLabel}.
               </p>
             </div>
           </div>
