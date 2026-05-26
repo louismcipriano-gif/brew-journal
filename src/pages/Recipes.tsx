@@ -37,6 +37,7 @@ const BREWING_DEVICES = [
   'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
   'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
   'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot', 'AeroPress',
+  'Gabi Master A',
 ];
 const FILTERS = [
   'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
@@ -54,6 +55,7 @@ const DEVICE_SHAPE: Record<string, 'Cone' | 'Flat'> = {
   'Cafec Deep 27': 'Cone', 'Melodrip Column': 'Cone', 'Kono': 'Cone',
   'April Brewer': 'Flat', 'Hario Mugen': 'Cone', 'Hario Cloth': 'Cone',
   'Torch Mountain': 'Flat', 'Orea V3': 'Flat',
+  'Gabi Master A': 'Flat',
 };
 const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'filter-dependent'> = {
   'V60': 'Standard', 'Orea 01': 'filter-dependent', 'Orea Z1': 'No Bypass',
@@ -62,6 +64,7 @@ const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'f
   'Cafec Deep 27': 'Standard', 'Melodrip Column': 'No Bypass', 'Kono': 'Low Bypass',
   'April Brewer': 'Standard', 'Hario Mugen': 'Low Bypass', 'Hario Cloth': 'Standard',
   'Torch Mountain': 'Standard', 'Orea V3': 'filter-dependent',
+  'Gabi Master A': 'Standard',
 };
 function resolveBypass(device: string, filter: string): 'Standard' | 'Low Bypass' | 'No Bypass' | undefined {
   const val = DEVICE_BYPASS[device];
