@@ -131,6 +131,7 @@ export interface ApaxDrops {
   lylac?: number;
   april?: number;
   konflux?: number;
+  tanat?: number;
 }
 
 export interface Brew {
@@ -203,6 +204,7 @@ export interface SavedRecipe {
   waterTempF: number;
   waterPPM: number;
   waterRecipe: string;
+  baseWaterProduct?: string;
   recipeDetails: string;
   accentuates?: RecipeAccentuates[];
   idealCoffeeTypes?: string[];
@@ -215,7 +217,7 @@ export interface SavedRecipe {
   createdAt: string;
 }
 
-export type WaterProduct = 'Apax Labs' | 'Lotus Drops' | 'Third Wave Water';
+export type WaterProduct = 'Apax Labs' | 'Lotus Drops' | 'Third Wave Water' | 'Aquacode';
 
 export interface WaterRecipe {
   id: string;

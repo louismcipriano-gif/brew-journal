@@ -167,7 +167,7 @@ export default function Analytics() {
       ? parseFloat(avg(withoutApax.map((b) => calcBrewScore(b.flavorProfile))).toFixed(2))
       : null;
 
-    const drops = ['tonik', 'jamm', 'lylac', 'april', 'konflux'] as const;
+    const drops = ['tonik', 'jamm', 'lylac', 'april', 'konflux', 'tanat'] as const;
     const byDrop = drops.map((drop) => {
       const brewsWithDrop = withApax.filter((b) => (b.apaxDrops?.[drop] ?? 0) > 0);
       if (brewsWithDrop.length === 0) return null;

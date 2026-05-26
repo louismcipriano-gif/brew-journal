@@ -23,7 +23,7 @@ const HEIGHT_SPEED: PourHeightSpeed[] = ['Low', 'Medium', 'High'];
 const POUR_SPEEDS: PourHeightSpeed[] = ['Low', 'Medium', 'High', 'Combination'];
 const POUR_SPEED_MLS = ['1–3', '4–6', '6–8', '8–10', '10+', 'Combination'];
 const POUR_STYLES = ['Circular', 'Center', 'Hybrid'] as const;
-const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
+const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero', 'A4Z'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 const BREWING_DEVICES = [
   'V60', 'Orea 01', 'Orea Z1', 'V60 Switch', 'Mugen Switch',
@@ -31,6 +31,7 @@ const BREWING_DEVICES = [
   'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
   'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
   'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot', 'AeroPress',
+  'Gabi Master A',
 ];
 const FILTERS = [
   'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
@@ -48,6 +49,7 @@ const DEVICE_SHAPE: Record<string, 'Cone' | 'Flat'> = {
   'Cafec Deep 27': 'Cone', 'Melodrip Column': 'Cone', 'Kono': 'Cone',
   'April Brewer': 'Flat', 'Hario Mugen': 'Cone', 'Hario Cloth': 'Cone',
   'Torch Mountain': 'Flat', 'Orea V3': 'Flat',
+  'Gabi Master A': 'Flat',
 };
 const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'filter-dependent'> = {
   'V60': 'Standard', 'Orea 01': 'filter-dependent', 'Orea Z1': 'No Bypass',
@@ -56,6 +58,7 @@ const DEVICE_BYPASS: Record<string, 'Standard' | 'Low Bypass' | 'No Bypass' | 'f
   'Cafec Deep 27': 'Standard', 'Melodrip Column': 'No Bypass', 'Kono': 'Low Bypass',
   'April Brewer': 'Standard', 'Hario Mugen': 'Low Bypass', 'Hario Cloth': 'Standard',
   'Torch Mountain': 'Standard', 'Orea V3': 'filter-dependent',
+  'Gabi Master A': 'Standard',
 };
 // Grind setting → grind size auto-resolve per grinder
 const GRIND_SIZE_RANGES: Record<string, { max: number; size: string }[]> = {
@@ -74,6 +77,9 @@ const GRIND_SIZE_RANGES: Record<string, { max: number; size: string }[]> = {
     { max: 25,   size: 'Medium'          },
     { max: 28,   size: 'Medium Coarse'   },
     { max: Infinity, size: 'Coarse'      },
+  ],
+  'A4Z': [
+    { max: Infinity, size: 'Medium' },
   ],
 };
 function resolveGrindSize(grinder: string, setting: number): string | undefined {
@@ -1406,7 +1412,7 @@ export default function BrewForm() {
             </div>
             {form.apaxDropsUsed && (
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                {(['tonik', 'jamm', 'lylac', 'april', 'konflux'] as const).map((drop) => (
+                {(['tonik', 'jamm', 'lylac', 'april', 'konflux', 'tanat'] as const).map((drop) => (
                   <div key={drop} className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">{drop}</label>
                     <input

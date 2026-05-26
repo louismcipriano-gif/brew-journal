@@ -28,7 +28,8 @@ const IDEAL_COFFEE_TYPES = [
   'Experimental Process',
   'Medium / Dark Roast',
 ] as const;
-const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
+const GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero', 'A4Z'];
+const BASE_WATER_PRODUCTS = ['Lotus Drops', 'Apax Labs', 'Aquacode', 'Third Wave Water'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 const BREWING_DEVICES = [
   'V60', 'Orea 01', 'Orea Z1', 'V60 Switch', 'Mugen Switch',
@@ -96,6 +97,7 @@ const blankRecipe: Omit<SavedRecipe, 'id' | 'createdAt'> = {
   waterTempF: 205,
   waterPPM: 0,
   waterRecipe: '',
+  baseWaterProduct: '',
   recipeDetails: '',
   accentuates: [],
   idealCoffeeTypes: [],
@@ -141,6 +143,7 @@ export function RecipeForm() {
           waterTempF: existing.waterTempF,
           waterPPM: existing.waterPPM,
           waterRecipe: existing.waterRecipe,
+          baseWaterProduct: existing.baseWaterProduct ?? '',
           recipeDetails: existing.recipeDetails,
           accentuates: existing.accentuates ?? [],
           idealCoffeeTypes: existing.idealCoffeeTypes ?? [],
@@ -794,6 +797,19 @@ export function RecipeForm() {
               onChange={(e) => set('waterRecipe', e.target.value)}
               placeholder="e.g. Third Wave Water, Barista Hustle #4"
             />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Base Water Product</label>
+              <select
+                className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+                value={form.baseWaterProduct ?? ''}
+                onChange={(e) => set('baseWaterProduct', e.target.value)}
+              >
+                <option value="">— None —</option>
+                {BASE_WATER_PRODUCTS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Recipe details with voice */}
@@ -1233,6 +1249,7 @@ export function RecipeDetail() {
               { label: 'Water Temp', value: recipe.waterTempF ? `${recipe.waterTempF}°F / ${fToC(recipe.waterTempF)}°C` : '—' },
               { label: 'Water PPM', value: recipe.waterPPM ? `${recipe.waterPPM} ppm` : '—' },
               { label: 'Water Recipe', value: recipe.waterRecipe || '—' },
+              { label: 'Base Water Product', value: recipe.baseWaterProduct || '—' },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between text-sm border-b border-brew-border/40 pb-2 last:border-0 last:pb-0">
                 <span className="text-brew-faint">{label}</span>
