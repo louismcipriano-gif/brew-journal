@@ -10,12 +10,13 @@ const KNOWN_DEVICES = [
   'Cafec Deep 27', 'Melodrip Column', 'Kono', 'April Brewer',
   'Hario Mugen', 'Hario Cloth', 'Torch Mountain', 'Orea V3',
   'OXO Rapid Brewer', 'Flair 58', 'French Press', 'Mokka Pot',
+  'Gabi Master A',
 ];
 const KNOWN_FILTERS = [
   'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
   'Orea Flat', 'Origami Wave', 'Kalita Wave', 'April Wave', 'Kono', 'Melodrip Column',
 ];
-const KNOWN_GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero'];
+const KNOWN_GRINDERS = ['Timemore Sculptor 078', 'Comandante C40', 'Niche Zero', 'A4Z'];
 const GRIND_SIZES = ['Fine Espresso', 'Coarse Espresso', 'Fine / Mokka', 'Medium Fine', 'Medium', 'Medium Coarse', 'Coarse'];
 
 export interface VoiceBrewFields {

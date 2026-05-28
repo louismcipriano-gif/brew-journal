@@ -6,7 +6,7 @@ import { Button, Card, Badge, Input, EmptyState, SectionTitle } from '../compone
 import { formatDate } from '../utils';
 import type { WaterRecipe, WaterProduct } from '../types';
 
-const PRODUCTS: WaterProduct[] = ['Apax Labs', 'Lotus Drops', 'Third Wave Water'];
+const PRODUCTS: WaterProduct[] = ['Apax Labs', 'Lotus Drops', 'Third Wave Water', 'Aquacode'];
 
 type WRFormKey = keyof Omit<WaterRecipe, 'id' | 'createdAt'>;
 
