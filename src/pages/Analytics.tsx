@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { BarChart3 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Card, Select, EmptyState } from '../components/ui';
+import type { Brew, Coffee } from '../types';
 import {
   LineChart, Line, BarChart, Bar, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -21,6 +22,132 @@ const tooltipStyle = {
   labelStyle: { color: '#6b5040', fontSize: 11 },
   itemStyle: { color: '#5a3820' },
 };
+
+// ─── Custom Explorer ───────────────────────────────────────────────────────────
+
+const EXPLORE_X: {
+  key: string;
+  label: string;
+  bucket: (b: Brew, c: Coffee | undefined) => string;
+  order?: string[];
+}[] = [
+  { key: 'grindSize',    label: 'Grind Size',
+    bucket: (b) => b.grindSize || '—',
+    order: ['Fine Espresso','Coarse Espresso','Fine / Mokka','Medium Fine','Medium','Medium Coarse','Coarse','—'] },
+  { key: 'totalPours',   label: '# of Pours',
+    bucket: (b) => b.pourOverDetails?.totalPours != null ? String(b.pourOverDetails.totalPours) : '—' },
+  { key: 'brewingDevice',label: 'Brewing Device',   bucket: (b) => b.brewingDevice || '—' },
+  { key: 'grinder',      label: 'Grinder',           bucket: (b) => b.grinder || '—' },
+  { key: 'brewMethod',   label: 'Brew Method',       bucket: (b) => b.brewMethod },
+  { key: 'waterTemp',    label: 'Water Temp',
+    bucket: (b) => {
+      const t = b.waterTempF;
+      if (!t) return '—';
+      if (t < 195) return '< 195°F';
+      if (t <= 200) return '195–200°F';
+      if (t <= 205) return '200–205°F';
+      return '> 205°F';
+    },
+    order: ['< 195°F','195–200°F','200–205°F','> 205°F','—'] },
+  { key: 'brewRatio',    label: 'Brew Ratio',
+    bucket: (b) => {
+      if (!b.coffeeDose || !b.waterAmount) return '—';
+      const r = b.waterAmount / b.coffeeDose;
+      if (r < 14) return '< 1:14';
+      if (r < 15) return '1:14–15';
+      if (r < 16) return '1:15–16';
+      if (r < 17) return '1:16–17';
+      return '> 1:17';
+    },
+    order: ['< 1:14','1:14–15','1:15–16','1:16–17','> 1:17','—'] },
+  { key: 'brewTime',     label: 'Total Brew Time',
+    bucket: (b) => {
+      const t = b.pourOverDetails?.totalBrewTime;
+      if (!t) return '—';
+      if (t < 2.5)  return '< 2:30';
+      if (t < 3)    return '2:30–3:00';
+      if (t < 3.5)  return '3:00–3:30';
+      return '> 3:30';
+    },
+    order: ['< 2:30','2:30–3:00','3:00–3:30','> 3:30','—'] },
+  { key: 'daysOffRoast', label: 'Days Off Roast',
+    bucket: (b, c) => {
+      if (!c?.roastDate) return '—';
+      const d = daysOffRoast(c.roastDate, b.brewDate);
+      if (d < 7)  return '< 1 week';
+      if (d < 14) return '1–2 weeks';
+      if (d < 21) return '2–3 weeks';
+      if (d < 28) return '3–4 weeks';
+      return '4+ weeks';
+    },
+    order: ['< 1 week','1–2 weeks','2–3 weeks','3–4 weeks','4+ weeks','—'] },
+  { key: 'processingMethod', label: 'Processing Method', bucket: (_, c) => c?.processingMethod || '—' },
+  { key: 'roastLevel',   label: 'Roast Level',
+    bucket: (_, c) => c?.roastLevel || '—',
+    order: ['Ultra Light','Light','Light-Medium','Medium','Medium-Dark','Dark','—'] },
+  { key: 'pourHeight',   label: 'Pour Height',
+    bucket: (b) => b.pourOverDetails?.pourHeight || '—',
+    order: ['Low','Medium','High','Combination','—'] },
+  { key: 'pourSpeed',    label: 'Pour Speed',
+    bucket: (b) => b.pourOverDetails?.pourSpeed || '—',
+    order: ['Low','Medium','High','Combination','—'] },
+  { key: 'agitation',   label: 'Agitation',
+    bucket: (b) => b.pourOverDetails?.agitation || '—',
+    order: ['Low','Medium','High','Combination','—'] },
+  { key: 'perceivedExtraction', label: 'Perceived Extraction',
+    bucket: (b) => b.flavorProfile.perceivedExtraction || '—',
+    order: ['Under','Balanced','Over','Uneven','Unsure','—'] },
+  { key: 'waterPPM',    label: 'Water PPM',
+    bucket: (b) => {
+      const p = b.waterPPM;
+      if (!p) return '—';
+      if (p < 50)  return '< 50 ppm';
+      if (p < 100) return '50–100 ppm';
+      if (p < 150) return '100–150 ppm';
+      return '150+ ppm';
+    },
+    order: ['< 50 ppm','50–100 ppm','100–150 ppm','150+ ppm','—'] },
+  { key: 'bloomAmount', label: 'Bloom Amount',
+    bucket: (b) => {
+      const bl = b.pourOverDetails?.bloomAmount;
+      if (!bl) return '—';
+      if (bl < 40) return '< 40g';
+      if (bl < 50) return '40–50g';
+      if (bl < 60) return '50–60g';
+      return '60g+';
+    },
+    order: ['< 40g','40–50g','50–60g','60g+','—'] },
+];
+
+const EXPLORE_Y: { key: string; label: string; value: (b: Brew) => number; isNegative?: boolean }[] = [
+  { key: 'score',       label: 'Overall Score',  value: (b) => calcBrewScore(b.flavorProfile) },
+  { key: 'sweetness',   label: 'Sweetness',       value: (b) => b.flavorProfile.sweetness },
+  { key: 'acidity',     label: 'Acidity',          value: (b) => b.flavorProfile.acidity },
+  { key: 'body',        label: 'Body',              value: (b) => b.flavorProfile.body },
+  { key: 'clarity',     label: 'Clarity',           value: (b) => b.flavorProfile.clarity },
+  { key: 'juiciness',   label: 'Juiciness',         value: (b) => b.flavorProfile.juiciness },
+  { key: 'florality',   label: 'Florality',         value: (b) => b.flavorProfile.florality },
+  { key: 'finish',      label: 'Finish',             value: (b) => b.flavorProfile.finish },
+  { key: 'texture',     label: 'Texture',            value: (b) => b.flavorProfile.texture },
+  { key: 'fruit',       label: 'Fruit',              value: (b) => b.flavorProfile.fruit },
+  { key: 'astringency', label: 'Astringency',        value: (b) => b.flavorProfile.astringency, isNegative: true },
+  { key: 'sourness',    label: 'Sourness',            value: (b) => b.flavorProfile.sourness,    isNegative: true },
+  { key: 'funkiness',   label: 'Funkiness',           value: (b) => b.flavorProfile.funkiness,   isNegative: true },
+];
+
+function explorerBarColor(val: number, isNegative: boolean | undefined): string {
+  if (isNegative) {
+    if (val >= 3.5) return '#c45040';
+    if (val >= 2.5) return '#b87d28';
+    return '#2d6e4e';
+  } else {
+    if (val >= 3.5) return '#2d6e4e';
+    if (val >= 2.5) return '#b87d28';
+    return '#c45040';
+  }
+}
+
+// ─── End Custom Explorer constants ─────────────────────────────────────────────
 
 function ChartCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
@@ -44,6 +171,54 @@ export default function Analytics() {
   const { data, getCoffee } = useApp();
   const [filterMethod, setFilterMethod] = useState('');
   const [filterProcess, setFilterProcess] = useState('');
+
+  // Custom Explorer state
+  const [exXKey, setExXKey] = useState('grindSize');
+  const [exYKey, setExYKey] = useState('score');
+  const [exMethod, setExMethod] = useState('');
+  const [exDevice, setExDevice] = useState('');
+  const [exGrinder, setExGrinder] = useState('');
+  const [exProcess, setExProcess] = useState('');
+  const [exRoastLevel, setExRoastLevel] = useState('');
+
+  const explorerResult = useMemo(() => {
+    let brews = data.brews;
+    if (exMethod)     brews = brews.filter((b) => b.brewMethod === exMethod);
+    if (exDevice)     brews = brews.filter((b) => b.brewingDevice === exDevice);
+    if (exGrinder)    brews = brews.filter((b) => b.grinder === exGrinder);
+    if (exProcess)    brews = brews.filter((b) => getCoffee(b.coffeeId)?.processingMethod === exProcess);
+    if (exRoastLevel) brews = brews.filter((b) => getCoffee(b.coffeeId)?.roastLevel === exRoastLevel);
+
+    const xDef = EXPLORE_X.find((x) => x.key === exXKey)!;
+    const yDef = EXPLORE_Y.find((y) => y.key === exYKey)!;
+
+    const groups = new Map<string, number[]>();
+    brews.forEach((b) => {
+      const c = getCoffee(b.coffeeId);
+      const xVal = xDef.bucket(b, c);
+      if (!groups.has(xVal)) groups.set(xVal, []);
+      groups.get(xVal)!.push(yDef.value(b));
+    });
+
+    let entries = Array.from(groups.entries())
+      .map(([x, vals]) => ({ x, avg: parseFloat(avg(vals).toFixed(2)), count: vals.length }))
+      .filter((e) => e.count > 0);
+
+    if (xDef.order) {
+      entries.sort((a, b) => {
+        const ai = xDef.order!.indexOf(a.x);
+        const bi = xDef.order!.indexOf(b.x);
+        if (ai === -1 && bi === -1) return a.x.localeCompare(b.x);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+    } else {
+      entries.sort((a, b) => a.x.localeCompare(b.x));
+    }
+
+    return { entries, xLabel: xDef.label, yLabel: yDef.label, total: brews.length, isNegative: yDef.isNegative };
+  }, [data.brews, getCoffee, exXKey, exYKey, exMethod, exDevice, exGrinder, exProcess, exRoastLevel]);
 
   const brewsWithScore = useMemo(() => {
     let brews = data.brews;
@@ -202,6 +377,12 @@ export default function Analytics() {
     data.brews.map((b) => getCoffee(b.coffeeId)?.processingMethod).filter(Boolean)
   )] as string[];
 
+  // Explorer filter options (only values that exist in logged brews)
+  const exDevices    = [...new Set(data.brews.map((b) => b.brewingDevice).filter(Boolean))] as string[];
+  const exGrinders   = [...new Set(data.brews.map((b) => b.grinder).filter(Boolean))] as string[];
+  const exRoastLevels = [...new Set(data.brews.map((b) => getCoffee(b.coffeeId)?.roastLevel).filter(Boolean))] as string[];
+  const exHasFilters = !!(exMethod || exDevice || exGrinder || exProcess || exRoastLevel);
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -243,6 +424,156 @@ export default function Analytics() {
         <StatPill label="Best Score" value={bestScore ? bestScore.toFixed(1) : '—'} color="#e8c84a" />
         <StatPill label="Go-To Recipes" value={brewsWithScore.filter((b) => b.isGoToRecipe).length} color="#5ca882" />
       </div>
+
+      {/* ── Custom Explorer ──────────────────────────────────────────── */}
+      <Card className="p-5 flex flex-col gap-5">
+        <div>
+          <h2 className="font-display italic text-brew-text text-xl leading-tight">Variable Explorer</h2>
+          <p className="text-brew-faint text-xs mt-0.5">
+            Pick any two variables to see how they relate across your brews
+          </p>
+        </div>
+
+        {/* X and Y selectors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Break down by</label>
+            <select
+              className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+              value={exXKey}
+              onChange={(e) => setExXKey(e.target.value)}
+            >
+              {EXPLORE_X.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">Measure</label>
+            <select
+              className="w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+              value={exYKey}
+              onChange={(e) => setExYKey(e.target.value)}
+            >
+              {EXPLORE_Y.map((y) => <option key={y.key} value={y.key}>{y.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Context filters */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-brew-muted uppercase tracking-wider">Filter to</span>
+            {exHasFilters && (
+              <button
+                className="text-xs text-brew-faint hover:text-brew-muted transition-colors"
+                onClick={() => { setExMethod(''); setExDevice(''); setExGrinder(''); setExProcess(''); setExRoastLevel(''); }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+              value={exMethod}
+              onChange={(e) => setExMethod(e.target.value)}
+            >
+              <option value="">All Brew Methods</option>
+              {methods.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            {exDevices.length > 1 && (
+              <select
+                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+                value={exDevice}
+                onChange={(e) => setExDevice(e.target.value)}
+              >
+                <option value="">All Devices</option>
+                {exDevices.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
+            {exGrinders.length > 1 && (
+              <select
+                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+                value={exGrinder}
+                onChange={(e) => setExGrinder(e.target.value)}
+              >
+                <option value="">All Grinders</option>
+                {exGrinders.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            )}
+            {processTypes.length > 1 && (
+              <select
+                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+                value={exProcess}
+                onChange={(e) => setExProcess(e.target.value)}
+              >
+                <option value="">All Processing</option>
+                {processTypes.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+            {exRoastLevels.length > 1 && (
+              <select
+                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
+                value={exRoastLevel}
+                onChange={(e) => setExRoastLevel(e.target.value)}
+              >
+                <option value="">All Roast Levels</option>
+                {exRoastLevels.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+
+        {/* Results */}
+        {explorerResult.entries.length === 0 ? (
+          <p className="text-brew-faint text-sm py-4 text-center">No brews match your filters.</p>
+        ) : (
+          <>
+            <p className="text-xs text-brew-faint -mt-2">
+              {explorerResult.total} brew{explorerResult.total !== 1 ? 's' : ''} · {explorerResult.entries.length} group{explorerResult.entries.length !== 1 ? 's' : ''}
+              {exHasFilters && <span className="text-brew-primary-light"> (filtered)</span>}
+            </p>
+            <ResponsiveContainer width="100%" height={explorerResult.entries.length > 6 ? 280 : 220}>
+              <BarChart data={explorerResult.entries} margin={{ top: 5, right: 10, bottom: explorerResult.entries.length > 4 ? 40 : 5, left: 0 }}>
+                <CartesianGrid stroke="#e5ddd0" strokeDasharray="4 4" />
+                <XAxis
+                  dataKey="x"
+                  tick={{ fill: '#a8907c', fontSize: 10 }}
+                  angle={explorerResult.entries.length > 4 ? -30 : 0}
+                  textAnchor={explorerResult.entries.length > 4 ? 'end' : 'middle'}
+                  interval={0}
+                />
+                <YAxis domain={[0, 5]} tick={{ fill: '#a8907c', fontSize: 10 }} width={24} />
+                <Tooltip
+                  {...tooltipStyle}
+                  formatter={tf((v: number) => [v.toFixed(2), explorerResult.yLabel])}
+                  labelFormatter={(label) => `${explorerResult.xLabel}: ${label}`}
+                />
+                <Bar dataKey="avg" name={explorerResult.yLabel} radius={[4, 4, 0, 0]}>
+                  {explorerResult.entries.map((e, i) => (
+                    <Cell key={i} fill={explorerBarColor(e.avg, explorerResult.isNegative)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className={`grid gap-2 ${explorerResult.entries.length > 6 ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'}`}>
+              {explorerResult.entries.map((e) => (
+                <div key={e.x} className="flex items-center justify-between p-2 bg-brew-surface rounded-lg">
+                  <span className="text-xs text-brew-muted truncate mr-2">{e.x}</span>
+                  <div className="flex flex-col items-end flex-shrink-0">
+                    <span
+                      className="text-sm font-bold"
+                      style={{ color: explorerBarColor(e.avg, explorerResult.isNegative) }}
+                    >
+                      {e.avg.toFixed(2)}
+                    </span>
+                    <span className="text-xs text-brew-faint">{e.count}×</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
 
       {/* Score Over Time */}
       {scoreTrend.length > 1 && (
