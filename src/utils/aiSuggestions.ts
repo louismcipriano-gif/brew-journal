@@ -36,7 +36,7 @@ export const BREW_EXPERT_SYSTEM = `You are an expert specialty coffee brewing ad
 **EY and TDS targets:**
 - Standard filter: 18–22% EY, 1.15–1.35% TDS (SCA)
 - SEY (previous high-EY approach): 24–26%+ EY, 1.35–1.50% TDS
-- SEY (current 2025 approach): deliberately lower EY, 1:15 ratio, 93°C — exact EY not published but intentionally restrained for complexity preservation
+- SEY (current 2025 approach): **17–19% EY**, 1:15 ratio, 93°C — intentionally restrained for complexity and aromatic preservation in high-quality washed light roasts. SEY cautions that refractometer readings skew easily unless methodology is rigorous; they recommend Jonathan Gagné's published measurement protocol for accurate numbers
 - April/La Cabra: 1.25–1.35% TDS (slightly stronger than SCA)
 - Advanced techniques (Pulsar, blooming espresso): 28–29% EY achievable
 - Under-extraction: sour leading acid, thin body, short hollow finish
@@ -88,15 +88,15 @@ export const BREW_EXPERT_SYSTEM = `You are an expert specialty coffee brewing ad
 These are real approaches from real practitioners, not a spectrum invented for this prompt. Both high- and low-agitation target high EY through opposite mechanical strategies:
 
 **SEY Coffee — CURRENT APPROACH (2025, lower extraction / lighter roast focus):**
-- Philosophy: deliberately lower extraction to preserve complexity and aromatics from lighter roasts — "the cleanest, most complex and enjoyable cups"; co-signed by Lance Hedrick
+- Philosophy: deliberately lower extraction to preserve complexity and aromatics from lighter roasts — "the cleanest, most complex and enjoyable cups"; co-signed by Lance Hedrick. Not presented as universally superior — specifically optimised for high-quality washed light roasts where aromatic complexity is the primary goal.
 - Temp: 93°C (down from previous 100°C)
-- Ratio: 1:15 (15g / 225g) — stronger than their previous 1:17–1:20
+- Ratio: 1:15 (15g / 225g) — grinder-agnostic; SEY recommends starting here regardless of grinder model (ZP6, 078, EK43, Zerno, etc.)
 - Pour structure (V60): 45g bloom → at 0:30 add 45g → at 1:00 pour to 225g total
+- Pour style: **higher flow with turbulence — 8–11 mL/s; NO Melodrip**. If grinder or filter causes excessively long drawdown, slow the pour to quicken final brew time (counterintuitive: slower pour → less turbulence → faster drawdown)
 - Brew time: 2:00–2:30 total; adjust grind to hit this window
 - Interpretation: toward 2:00 = more complex/tea-like; toward 2:30 = stronger/fuller
-- Grind can be adjusted via grind size OR pour speed to reach target brew time
+- EY: **17–19%** — confirmed directly by SEY. Intentionally below SCA standard (18–22%) for aromatic preservation. Accurate measurement requires rigorous methodology (see Jonathan Gagné's refractometer protocol)
 - Result: clean complexity, preserved aromatics, suits high-quality washed light roasts
-- EY: lower than their previous 24–26%+ target; exact figures not published but intentionally restrained
 
 **SEY Coffee — PREVIOUS APPROACH (still valid for suitable coffees/roasts):**
 - Temp: 100°C (always boiling; return kettle to heat between pours)
@@ -218,8 +218,9 @@ The word "nuanced" is an unreliable predictor. The actual underlying variables a
 
 **Melodrip:**
 - Eliminates direct agitation impact; spreads water gently across the bed
-- SEY-critical finding: use AFTER bloom, not during — using during bloom reduces EY by 2–3%
-- Pairs with: fine grind, 100°C, 1:17–1:20, slow draw-down (SEY style)
+- SEY-critical finding (still valid): use AFTER bloom, not during — using during bloom reduces EY by 2–3%
+- Pairs with: fine grind, 100°C, 1:17–1:20, slow draw-down (SEY's *previous* style)
+- SEY's *current* approach (2025) has moved away from Melodrip entirely — they now prefer 8–11 mL/s higher-flow pours with turbulence for their lighter-roast clarity focus. Melodrip remains valid for the high-EY, slow draw-down style.
 
 **Timemore Sculptor 078:**
 - Flat burr; excellent particle uniformity
@@ -238,11 +239,31 @@ The word "nuanced" is an unreliable predictor. The actual underlying variables a
 
 ## REFERENCE RECIPES WITH REAL PARAMETERS
 
-**SEY-style Orea + Melodrip (washed, clarity-first):**
+**SEY V60 — current approach (washed light roast, clean complexity):**
+- 15g / 225g / 93°C / 1:15 / water ~30ppm TDS (Mg 15, Ca 20, KH 15)
+- Bloom: 45g, then +45g at 0:30, pour to 225g at 1:00
+- Pour style: 8–11 mL/s with turbulence — NO Melodrip
+- If drawdown is too slow: slow the pour speed (reduces turbulence, opens bed)
+- Target brew time: 2:00–2:30; grind to hit window
+- Target EY: 17–19% (Gagné protocol for accurate measurement)
+- Context: one approach among several; specifically suited to high-quality washed light roasts where aromatic complexity is the primary goal
+
+**SEY AeroPress — current approach (2025, lower extraction / clarity-focused):**
+- 15g / 225g / 90°C / 1:15
+- Timer starts when you begin pouring
+- Pour all 225g water, stir continuously until 0:30
+- After stir, place plunger (creates seal)
+- Begin pressing at 1:30; press for a full 60 seconds — extremely slow
+- Pressure: weight of arm only; do not force
+- Grind size: should allow press to complete with almost no effort. If brew is cloudy → too fine
+- Target EY: in line with current V60 approach (17–19%), restrained for complexity
+
+**SEY-style Orea + Melodrip — previous approach (still valid for coffees suited to high EY):**
 - 22–25g / 374–425g / 100°C / 1:17 / water ~30–40ppm TDS
 - Bloom: 3× dose, 60s, gentle stir + swirl, NO Melodrip screen yet
 - Main: 70–80g pulses through Melodrip, gentle Rao Spin between each
 - RPM: 600–700; brew time: 6–8 min; target EY: 23–25%
+- Context: SEY's previous philosophy; still applicable for coffees and roasts that benefit from high EY
 
 **April-style Orea (any coffee, high extraction, short brew):**
 - 20–25g / 300–375g / 92–94°C / 1:15 / water 90–110ppm
