@@ -180,6 +180,7 @@ export default function Analytics() {
   const [exGrinder, setExGrinder] = useState('');
   const [exProcess, setExProcess] = useState('');
   const [exRoastLevel, setExRoastLevel] = useState('');
+  const [exOrigin, setExOrigin] = useState('');
 
   const explorerResult = useMemo(() => {
     let brews = data.brews;
@@ -188,6 +189,7 @@ export default function Analytics() {
     if (exGrinder)    brews = brews.filter((b) => b.grinder === exGrinder);
     if (exProcess)    brews = brews.filter((b) => getCoffee(b.coffeeId)?.processingMethod === exProcess);
     if (exRoastLevel) brews = brews.filter((b) => getCoffee(b.coffeeId)?.roastLevel === exRoastLevel);
+    if (exOrigin)     brews = brews.filter((b) => getCoffee(b.coffeeId)?.countryOrigin === exOrigin);
 
     const xDef = EXPLORE_X.find((x) => x.key === exXKey)!;
     const yDef = EXPLORE_Y.find((y) => y.key === exYKey)!;
@@ -218,7 +220,7 @@ export default function Analytics() {
     }
 
     return { entries, xLabel: xDef.label, yLabel: yDef.label, total: brews.length, isNegative: yDef.isNegative };
-  }, [data.brews, getCoffee, exXKey, exYKey, exMethod, exDevice, exGrinder, exProcess, exRoastLevel]);
+  }, [data.brews, getCoffee, exXKey, exYKey, exMethod, exDevice, exGrinder, exProcess, exRoastLevel, exOrigin]);
 
   const brewsWithScore = useMemo(() => {
     let brews = data.brews;
@@ -377,11 +379,12 @@ export default function Analytics() {
     data.brews.map((b) => getCoffee(b.coffeeId)?.processingMethod).filter(Boolean)
   )] as string[];
 
-  // Explorer filter options (only values that exist in logged brews)
-  const exDevices    = [...new Set(data.brews.map((b) => b.brewingDevice).filter(Boolean))] as string[];
-  const exGrinders   = [...new Set(data.brews.map((b) => b.grinder).filter(Boolean))] as string[];
-  const exRoastLevels = [...new Set(data.brews.map((b) => getCoffee(b.coffeeId)?.roastLevel).filter(Boolean))] as string[];
-  const exHasFilters = !!(exMethod || exDevice || exGrinder || exProcess || exRoastLevel);
+  // Explorer filter options — always show all, populated from logged brews
+  const exDevices     = [...new Set(data.brews.map((b) => b.brewingDevice).filter(Boolean))].sort() as string[];
+  const exGrinders    = [...new Set(data.brews.map((b) => b.grinder).filter(Boolean))].sort() as string[];
+  const exRoastLevels = [...new Set(data.brews.map((b) => getCoffee(b.coffeeId)?.roastLevel).filter(Boolean))].sort() as string[];
+  const exOrigins     = [...new Set(data.brews.map((b) => getCoffee(b.coffeeId)?.countryOrigin).filter(Boolean))].sort() as string[];
+  const exHasFilters  = !!(exMethod || exDevice || exGrinder || exProcess || exRoastLevel || exOrigin);
 
   return (
     <div className="flex flex-col gap-8">
@@ -458,68 +461,40 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Context filters */}
+        {/* Context filters — always visible */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-brew-muted uppercase tracking-wider">Filter to</span>
+            <span className="text-xs font-medium text-brew-muted uppercase tracking-wider">Filters</span>
             {exHasFilters && (
               <button
-                className="text-xs text-brew-faint hover:text-brew-muted transition-colors"
-                onClick={() => { setExMethod(''); setExDevice(''); setExGrinder(''); setExProcess(''); setExRoastLevel(''); }}
+                className="text-xs text-brew-primary hover:text-brew-primary-light transition-colors"
+                onClick={() => { setExMethod(''); setExDevice(''); setExGrinder(''); setExProcess(''); setExRoastLevel(''); setExOrigin(''); }}
               >
-                Clear filters
+                Clear all
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <select
-              className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
-              value={exMethod}
-              onChange={(e) => setExMethod(e.target.value)}
-            >
-              <option value="">All Brew Methods</option>
-              {methods.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            {exDevices.length > 1 && (
-              <select
-                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
-                value={exDevice}
-                onChange={(e) => setExDevice(e.target.value)}
-              >
-                <option value="">All Devices</option>
-                {exDevices.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            )}
-            {exGrinders.length > 1 && (
-              <select
-                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
-                value={exGrinder}
-                onChange={(e) => setExGrinder(e.target.value)}
-              >
-                <option value="">All Grinders</option>
-                {exGrinders.map((g) => <option key={g} value={g}>{g}</option>)}
-              </select>
-            )}
-            {processTypes.length > 1 && (
-              <select
-                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
-                value={exProcess}
-                onChange={(e) => setExProcess(e.target.value)}
-              >
-                <option value="">All Processing</option>
-                {processTypes.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            )}
-            {exRoastLevels.length > 1 && (
-              <select
-                className="bg-brew-surface border border-brew-border rounded-lg px-3 py-1.5 text-xs text-brew-text focus:outline-none focus:border-brew-primary transition-colors"
-                value={exRoastLevel}
-                onChange={(e) => setExRoastLevel(e.target.value)}
-              >
-                <option value="">All Roast Levels</option>
-                {exRoastLevels.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-            )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              { label: 'Brew Method',   value: exMethod,     set: setExMethod,     opts: methods },
+              { label: 'Device',        value: exDevice,     set: setExDevice,     opts: exDevices },
+              { label: 'Grinder',       value: exGrinder,    set: setExGrinder,    opts: exGrinders },
+              { label: 'Processing',    value: exProcess,    set: setExProcess,    opts: processTypes },
+              { label: 'Roast Level',   value: exRoastLevel, set: setExRoastLevel, opts: exRoastLevels },
+              { label: 'Origin',        value: exOrigin,     set: setExOrigin,     opts: exOrigins },
+            ].map(({ label, value, set, opts }) => (
+              <div key={label} className="flex flex-col gap-1">
+                <span className="text-xs text-brew-faint">{label}</span>
+                <select
+                  className={`w-full bg-brew-surface border rounded-lg px-2.5 py-1.5 text-xs text-brew-text focus:outline-none transition-colors ${value ? 'border-brew-primary text-brew-primary-light' : 'border-brew-border'}`}
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                >
+                  <option value="">All</option>
+                  {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            ))}
           </div>
         </div>
 
