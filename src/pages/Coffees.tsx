@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, ArrowLeft, Trash2, Edit2, Coffee, Camera, ImagePlus, Loader2, Link, Star, MapPin, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, ArrowLeft, Trash2, Edit2, Coffee, Camera, ImagePlus, Loader2, Link, Star, MapPin, Calendar, CheckCircle, Copy } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   Button, Card, Badge, Input, Select, EmptyState, ScoreRing, SectionTitle, Toggle, MicButton,
@@ -696,7 +696,7 @@ export function CoffeeForm() {
 export function CoffeeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getCoffee, getBrewsForCoffee, deleteCoffee, updateCoffee } = useApp();
+  const { getCoffee, getBrewsForCoffee, deleteCoffee, updateCoffee, addCoffee } = useApp();
 
   const coffee = getCoffee(id!);
   if (!coffee) {
@@ -736,6 +736,19 @@ export function CoffeeDetail() {
     }
   }
 
+  function handleDuplicate() {
+    const { id: _id, createdAt: _createdAt, ...rest } = coffee!;
+    const dupe = addCoffee({
+      ...rest,
+      isResting: false,
+      isFinished: false,
+      isFreezing: false,
+      freezeStart: undefined,
+      freezeStop: undefined,
+    });
+    navigate(`/coffees/${dupe.id}`);
+  }
+
   const statusColors: Record<BrewingStatus, string> = {
     brewing: 'bg-green-100 text-green-700',
     resting: 'bg-amber-100 text-amber-700',
@@ -756,6 +769,9 @@ export function CoffeeDetail() {
           <ArrowLeft size={14} /> Back
         </Button>
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handleDuplicate}>
+            <Copy size={14} /> Duplicate
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => navigate(`/coffees/${id}/edit`)}>
             <Edit2 size={14} /> Edit
           </Button>
