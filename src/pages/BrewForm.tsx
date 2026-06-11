@@ -79,11 +79,11 @@ const GRIND_SIZE_RANGES: Record<string, { max: number; size: string }[]> = {
     { max: Infinity, size: 'Coarse'      },
   ],
   'A4Z': [
-    { max: 1.19, size: 'Fine / Mokka'   },
-    { max: 1.45, size: 'Medium Fine'    },
-    { max: 1.60, size: 'Medium'         },
-    { max: 1.80, size: 'Medium Coarse'  },
-    { max: Infinity, size: 'Coarse'     },
+    { max: 119,      size: 'Fine / Mokka'  },
+    { max: 145,      size: 'Medium Fine'   },
+    { max: 160,      size: 'Medium'        },
+    { max: 180,      size: 'Medium Coarse' },
+    { max: Infinity, size: 'Coarse'        },
   ],
 };
 function resolveGrindSize(grinder: string, setting: number): string | undefined {
