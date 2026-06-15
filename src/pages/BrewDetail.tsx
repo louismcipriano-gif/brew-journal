@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Edit2, RefreshCw, GitCompare } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { Button, Card, Badge, ScoreRing, SectionTitle } from '../components/ui';
+import { Button, Card, Badge, ScoreRing, SectionTitle, fmtTime } from '../components/ui';
 import {
   calcBrewScore, scoreColor, scoreLabel, formatDate, daysOffRoast,
   brewRatio, bloomRatio, espressoRatio, fToC, calcEY,
@@ -217,8 +217,8 @@ export default function BrewDetail() {
                 {[
                   { label: 'Total Pours', value: brew.pourOverDetails.totalPours },
                   { label: 'Bloom Amount', value: `${brew.pourOverDetails.bloomAmount}g (${bloomRatio(brew.pourOverDetails.bloomAmount, brew.coffeeDose)})` },
-                  { label: 'Bloom Time', value: `${brew.pourOverDetails.bloomTime} min` },
-                  { label: 'Total Brew Time', value: `${brew.pourOverDetails.totalBrewTime} min` },
+                  { label: 'Bloom Time', value: fmtTime(brew.pourOverDetails.bloomTime) },
+                  { label: 'Total Brew Time', value: fmtTime(brew.pourOverDetails.totalBrewTime) },
                   { label: 'Double Bloom', value: brew.pourOverDetails.doubleBloom ? 'Yes' : 'No' },
                   { label: 'Melodrip', value: brew.pourOverDetails.melodrip ? 'Yes' : 'No' },
                   { label: 'Pour Height', value: brew.pourOverDetails.pourHeight },

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { ArrowLeft, Star, BookMarked, Mic, MicOff, ChevronDown, ChevronUp, Loader2, Repeat2, Layers, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
-  Button, Card, Input, Select, Toggle, Slider, Chip, SectionTitle, ScoreRing, MicButton,
+  Button, Card, Input, Select, Toggle, Slider, Chip, SectionTitle, ScoreRing, MicButton, TimeInput,
 } from '../components/ui';
 import {
   calcBrewScore, calcEY, fToC, daysOffRoast, bloomRatio, espressoRatio, formatDate,
@@ -1486,23 +1486,15 @@ export default function BrewForm() {
                   </span>
                 )}
               </div>
-              <Input
+              <TimeInput
                 label="Bloom Time"
-                type="number"
-                min={0}
-                step={0.25}
-                value={form.pourOverDetails.bloomTime || ''}
-                onChange={(e) => setPO('bloomTime', parseFloat(e.target.value) || 0)}
-                suffix="min"
+                value={form.pourOverDetails.bloomTime || 0}
+                onChange={(v) => setPO('bloomTime', v)}
               />
-              <Input
+              <TimeInput
                 label="Total Brew Time"
-                type="number"
-                min={0}
-                step={0.25}
-                value={form.pourOverDetails.totalBrewTime || ''}
-                onChange={(e) => setPO('totalBrewTime', parseFloat(e.target.value) || 0)}
-                suffix="min"
+                value={form.pourOverDetails.totalBrewTime || 0}
+                onChange={(v) => setPO('totalBrewTime', v)}
               />
               {(form.brewMethod === 'Immersion' || form.brewMethod === 'Hybrid Immersion & Filter') && (
                 <Input
@@ -1659,14 +1651,10 @@ export default function BrewForm() {
                 onChange={(e) => setPO('immersionTime', parseFloat(e.target.value) || undefined)}
                 suffix="min"
               />
-              <Input
+              <TimeInput
                 label="Total Brew Time"
-                type="number"
-                min={0}
-                step={0.25}
-                value={form.pourOverDetails.totalBrewTime || ''}
-                onChange={(e) => setPO('totalBrewTime', parseFloat(e.target.value) || 0)}
-                suffix="min"
+                value={form.pourOverDetails.totalBrewTime || 0}
+                onChange={(v) => setPO('totalBrewTime', v)}
               />
             </div>
             <div className="flex flex-col gap-3 pt-2">

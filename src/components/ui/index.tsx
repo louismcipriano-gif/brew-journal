@@ -329,6 +329,73 @@ export function MicButton({ onResult, className = '' }: { onResult: (t: string) 
 
 // ── Chip ──────────────────────────────────────────────────────────────────────
 
+// ── TimeInput ─────────────────────────────────────────────────────────────────
+// Stores value as decimal minutes internally; displays as M + SS inputs.
+
+function decToMS(dec: number): { min: number; sec: number } {
+  const total = Math.round((dec || 0) * 60);
+  return { min: Math.floor(total / 60), sec: total % 60 };
+}
+
+function msToD(min: number, sec: number): number {
+  return parseFloat(((min * 60 + sec) / 60).toFixed(4));
+}
+
+/** Format decimal minutes as "M:SS" for display (e.g. 2.6333 → "2:38") */
+export function fmtTime(dec: number): string {
+  const { min, sec } = decToMS(dec);
+  return `${min}:${String(sec).padStart(2, '0')}`;
+}
+
+export function TimeInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (decMin: number) => void;
+}) {
+  const { min, sec } = decToMS(value);
+  const inputCls = 'w-full bg-brew-surface border border-brew-border rounded-lg px-3 py-2 text-sm text-brew-text placeholder-brew-faint focus:outline-none focus:border-brew-primary transition-colors text-center';
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-brew-muted uppercase tracking-wider">{label}</label>
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 flex-1">
+          <input
+            type="number"
+            min={0}
+            max={59}
+            value={min === 0 && value === 0 ? '' : min}
+            onChange={(e) => onChange(msToD(parseInt(e.target.value) || 0, sec))}
+            placeholder="0"
+            className={inputCls}
+          />
+          <span className="text-brew-muted text-xs font-medium">m</span>
+        </div>
+        <div className="flex items-center gap-1 flex-1">
+          <input
+            type="number"
+            min={0}
+            max={59}
+            value={sec === 0 && value === 0 ? '' : sec}
+            onChange={(e) => {
+              const s = Math.min(59, parseInt(e.target.value) || 0);
+              onChange(msToD(min, s));
+            }}
+            placeholder="00"
+            className={inputCls}
+          />
+          <span className="text-brew-muted text-xs font-medium">s</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Chip ──────────────────────────────────────────────────────────────────────
+
 export function Chip({ label, checked, onChange, color = 'positive' }: {
   label: string;
   checked: boolean;
