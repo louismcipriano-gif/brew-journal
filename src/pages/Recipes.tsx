@@ -41,7 +41,7 @@ const BREWING_DEVICES = [
 ];
 const FILTERS = [
   'Cafec T-90', 'T-92', 'Abaca', 'Deep 27', 'Sibarist Z1',
-  'Orea Flat', 'Origami Wave', 'Kalita Wave', 'April Wave', 'Kono', 'Melodrip Column',
+  'Orea Flat', 'xBloom', 'Origami Wave', 'Kalita Wave', 'April Wave', 'Kono', 'Melodrip Column',
 ];
 const FILTER_PRESELECT: Record<string, string> = {
   'Orea Z1': 'Sibarist Z1',
